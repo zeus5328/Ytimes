@@ -210,6 +210,7 @@
       { name: '일정', items: [['#/agenda', '일정', ['#/agenda', '#/calendar', '#/anniversaries'], '오늘 · 달력 · 생일·기념일'], tt && ['#/timetable', '시간표', ['#/timetable'], '학교·학원 시간표'], YT.can('subscriber') && ['#/todo', '할 일', ['#/todo'], '당번 · 가족회의 · 버킷리스트']].filter(Boolean) },
       { name: '가족', items: [['#/board', '가족 광장', ['#/board'], '투표 · 오늘의 한마디'], ['#/people', '가족 앨범', ['#/people', '#/family-tree', '#/growth', '#/timeline'], '인물 · 가계도 · 성장 기록 · 가족 연표'], ['#/post', '우체국', ['#/post'], '편지·카드 · 타임캡슐'], YT.can('admin') && ['#/studio', '사진관', ['#/studio'], '사진 보관·앨범']].filter(Boolean) },
       YT.can('reporter') && { name: '편집국', items: [['#/newsroom', '편집실', ['#/newsroom', '#/write'], '기사 쓰기 · 검토 · 발행'], ['#/reporters', '기자단', ['#/reporters'], '배지 · 시상식']] },
+      { name: '설정', items: [['#/settings', '설정', ['#/settings'], u ? (YT.can('admin') ? '내 정보 · 화면 · 신문 정보 · 가족 계정 · 자료 관리' : '내 정보 · 화면 설정') : '화면 밝기 · 글자 크기']] },
     ].filter(Boolean);
   };
   // 화면 안의 작은 탭 — 같은 메뉴에 속한 화면끼리 오가기
