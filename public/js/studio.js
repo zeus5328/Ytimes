@@ -7,7 +7,7 @@
 
   YT.addRoute('/studio', async (view) => {
     if (!YT.can('admin')) {
-      view.innerHTML = YT.pageHead('', '사진관', '가족 사진을 고르고 나만의 앨범으로 엮는 공간입니다. 사진 보관·앨범 제작은 관리자 전용입니다.')
+      view.innerHTML = YT.subTabs('studio') + YT.pageHead('', '사진관', '가족 사진을 고르고 나만의 앨범으로 엮는 공간입니다. 사진 보관·앨범 제작은 관리자 전용입니다.')
         + `<div class="empty-state"><h2>관리자 전용 공간이에요</h2><p>원본 사진과 앨범은 관리자만 볼 수 있습니다.</p>${YT.state.user ? '' : `<a class="btn primary" href="#/login?next=${encodeURIComponent('#/studio')}">로그인</a>`}</div>`;
       return;
     }
@@ -19,7 +19,7 @@
       const sel = new Set(album.items.map((i) => i.photo));
       const tkey = YT.albumKey(album.template); album.template = tkey;
       const pages = YT.renderAlbumPages(album, { sample: !album.items.length });
-      view.innerHTML = YT.pageHead('', '가족의 순간을 한 권으로', '사진을 선택하고 템플릿을 고른 뒤, 설명과 순서를 다듬어 앨범을 출력해보세요. 원본과 앨범은 관리자만 볼 수 있습니다.',
+      view.innerHTML = YT.subTabs('studio') + YT.pageHead('', '가족의 순간을 한 권으로', '사진을 선택하고 템플릿을 고른 뒤, 설명과 순서를 다듬어 앨범을 출력해보세요. 원본과 앨범은 관리자만 볼 수 있습니다.',
         `<button class="btn primary" id="importBtn">사진 가져오기</button><input type="file" id="stFile" accept="image/*" multiple hidden>`)
         + `<ol class="flow small"><li><b>1</b>사진 선택</li><li><b>2</b>디자인·종이 고르기</li><li><b>3</b>설명·순서 조정</li><li><b>4</b>저장·출력</li></ol>
         <details class="help"><summary>클라우드·외부 폴더에서 가져오기</summary>
