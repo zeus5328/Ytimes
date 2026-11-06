@@ -56,7 +56,7 @@
     if (!YT.can('admin')) { box.innerHTML = '<div class="empty-state"><h2>관리자만 볼 수 있어요</h2></div>'; return; }
     const d = await YT.api('/api/points');
     const memberOpts = d.members.map((m) => `<option value="${m.id}">${esc(m.display_name)} (${P(m.balance)}P)</option>`).join('');
-    box.innerHTML = `
+    box.innerHTML = `${d.unpaid ? `<div class="pt-backpay"><div><b>원고료를 아직 못 받은 기사가 ${d.unpaid}편 있어요</b><small>원고료 기능이 생기기 전에 신문에 실린 기사들이에요.</small></div><button class="btn primary" id="backpay">지난 기사 원고료 한꺼번에 주기</button></div>` : ''}
       <section class="pt-sec"><div class="side-head"><h2>사용할 쿠폰</h2><span class="muted small">가족이 쿠폰을 보여 주면 확인하고 ‘사용 완료’를 눌러 주세요</span></div>
         ${d.pending.length ? `<div class="cp-list">${d.pending.map((x) => ticket(x, { cls: 'mine', meta: `<b>${esc(x.user_name)}</b> · 번호 <code>${esc(x.code)}</code> · ${dt(x.created)} 구입`,
           action: `<div class="row gap"><button class="btn small primary" data-use="${x.id}">사용 완료</button><button class="btn small ghost" data-cancel="${x.id}">취소·환불</button></div>` })).join('')}</div>`
@@ -71,7 +71,7 @@
         <form class="form-row" id="rateForm"><label>기사 한 편 (대표 기자)<input class="input" name="lead" inputmode="numeric" value="${d.rate.lead}"></label>
           <label>함께 쓴 기자 (한 사람당)<input class="input" name="co" inputmode="numeric" value="${d.rate.co}"></label><button class="btn">저장</button></form>
         <p class="muted small">기사가 <b>처음 신문에 실릴 때</b> 한 번만 들어가요. 내렸다가 다시 실어도 또 주지 않아요.</p>
-        ${d.unpaid ? `<div class="row gap"><button class="btn" id="backpay">지난 기사 원고료 한꺼번에 주기 (${d.unpaid}편)</button><span class="muted small">이 기능이 생기기 전에 실린 기사들</span></div>` : ''}</section>
+</section>
       <section class="pt-sec"><div class="side-head"><h2>쿠폰 만들기 · 고치기</h2><button class="btn small" data-new>새 쿠폰</button></div>
         <div class="cp-list">${d.coupons.map((c) => ticket(c, { cls: c.active ? '' : 'dim', meta: `${c.active ? '판매 중' : '판매 멈춤'} · 판 수량 ${c.issued}장${c.stock >= 0 ? ` / ${c.stock}장` : ''}${c.per_user ? ` · 1인 ${c.per_user}장` : ''}`,
           action: `<button class="btn small" data-edit="${c.id}">고치기</button>` })).join('') || '<p class="muted">쿠폰이 없어요.</p>'}</div></section>

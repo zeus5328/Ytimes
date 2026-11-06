@@ -1932,3 +1932,5 @@ div.gl:hover { border-color: var(--line); }
 .pt-hist b.plus { color: var(--ink); } .pt-hist b.minus { color: var(--muted); }
 .pt-members th small { font-weight: 400; }
 @media (max-width: 480px) { .cp-ticket::before, .cp-ticket::after { right: 6.25rem; } .cp-side { width: 6.25rem; } .pt-hist li { grid-template-columns: 5.25rem 1fr auto; gap: .5rem; } .cp-price { font-size: 1rem; } }
+.pt-backpay { display: flex; justify-content: space-between; align-items: center; gap: .75rem 1rem; flex-wrap: wrap; padding: 1rem 1.25rem; margin-bottom: 1.5rem; border: 1px solid var(--ink); border-radius: var(--r-lg); background: var(--surface); }
+.pt-backpay > div { display: grid; gap: .125rem; } .pt-backpay small { color: var(--muted); font-size: .8125rem; }
