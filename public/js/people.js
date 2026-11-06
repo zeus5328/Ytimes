@@ -156,43 +156,97 @@
       }
       if (!changed) break;
     }
-    // 세대마다 부부를 한 덩어리로, 부모 덩어리의 순서를 따라 늘어놓기
-    const byGen = []; for (const p of linked) (byGen[gen.get(p.name)] = byGen[gen.get(p.name)] || []).push(p);
-    const W = 128, H = 52, GX = 18, GY = 70, CG = 10; const pos = new Map(); let maxX = 0;
-    const birthKey = (p) => p.name;
-    byGen.forEach((row, g) => {
-      if (!row) return;
-      const used = new Set(); const units = [];
-      for (const p of row) {
-        if (used.has(p.name)) continue; used.add(p.name);
-        const sp = p.spouse && row.find((q) => q.name === p.spouse && !used.has(q.name));
-        if (sp) used.add(sp.name);
-        units.push(sp ? [p, sp] : [p]);
+    // ── 배치: 부부를 한 덩어리(unit)로, 집안(뿌리 부부)마다 아래로 가지를 뻗는 나무 모양으로
+    //    · 자녀 덩어리들의 폭을 먼저 재고, 부모는 자녀들 한가운데 위에
+    //    · 두 집안을 잇는 부부(예: 아빠-엄마)는 한쪽 집안의 맨 끝에 두고, 다른 집안을 바로 옆에 붙인다
+    const W = 128, H = 52, GX = 16, GY = 70, CG = 8, TREE_GAP = 40; const pos = new Map();
+    const byName = new Map(linked.map((p) => [p.name, p]));
+    const order = [...linked].sort((a, b) => gen.get(a.name) - gen.get(b.name) || a.name.localeCompare(b.name, 'ko'));
+    const units = []; const unitOf = new Map();
+    for (const p of order) {
+      if (unitOf.has(p.name)) continue;
+      const sp = p.spouse && byName.get(p.spouse); const u = { m: sp && !unitOf.has(sp.name) ? [p, sp] : [p], kids: [], id: units.length };
+      // 부모가 있는 사람(핏줄)을 먼저
+      if (u.m.length === 2 && !(u.m[0].father || u.m[0].mother) && (u.m[1].father || u.m[1].mother)) u.m.reverse();
+      units.push(u); u.m.forEach((x) => unitOf.set(x.name, u));
+    }
+    const parentUnit = (p) => unitOf.get(p.father) || unitOf.get(p.mother) || null;
+    for (const u of units) {
+      const ps = [...new Set(u.m.map(parentUnit).filter((x) => x && x !== u))];
+      u.parent = ps[0] || null; u.other = ps[1] || null; // other: 다른 집안 쪽 부모(두 집안을 잇는 부부)
+      if (u.parent) u.parent.kids.push(u);
+    }
+    const rootOf = (u) => { const seen = new Set(); while (u.parent && !seen.has(u)) { seen.add(u); u = u.parent; } return u; };
+    const roots = units.filter((u) => !u.parent);
+    const size = (u, seen = new Set()) => (seen.has(u) ? 0 : (seen.add(u), u.m.length + u.kids.reduce((n, k) => n + size(k, seen), 0)));
+    // 집안 순서: 가장 큰 집안부터, 다리(부부)로 이어진 집안은 바로 오른쪽에
+    const rootOrder = []; const placedRoot = new Set();
+    const visitRoot = (r) => {
+      if (placedRoot.has(r)) return; placedRoot.add(r); rootOrder.push(r);
+      const stack = [r]; const seen = new Set();
+      while (stack.length) { const u = stack.pop(); if (seen.has(u)) continue; seen.add(u); if (u.other) visitRoot(rootOf(u.other)); stack.push(...u.kids); }
+    };
+    roots.slice().sort((a, b) => size(b) - size(a)).forEach(visitRoot);
+    const rank = new Map(rootOrder.map((r, i) => [r, i]));
+    // 자녀 순서: 오른쪽 집안과 잇는 부부는 맨 오른쪽, 왼쪽 집안과 잇는 부부는 맨 왼쪽 (선이 덜 엇갈리게)
+    const side = (u) => { if (!u.other) return 0; const a = rank.get(rootOf(u.parent)), b = rank.get(rootOf(u.other)); return b > a ? 1 : -1; };
+    for (const u of units) {
+      u.kids.sort((a, b) => side(a) - side(b) || (gen.get(a.m[0].name) - gen.get(b.m[0].name)) || a.m[0].name.localeCompare(b.m[0].name, 'ko'));
+      if (u.other && u.m.length === 2) { // 다른 집안 쪽 배우자를 그 집안 방향에
+        const otherIsRight = side(u) > 0; const blood = u.m.find((x) => parentUnit(x) === u.parent) || u.m[0];
+        u.m = otherIsRight ? [blood, u.m.find((x) => x !== blood)] : [u.m.find((x) => x !== blood), blood];
       }
-      const want = (u) => { const xs = u.flatMap((p) => [p.father, p.mother]).filter((n) => n && pos.has(n)).map((n) => pos.get(n).x + W / 2); return xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null; };
-      units.sort((a, b) => (want(a) ?? 1e9) - (want(b) ?? 1e9) || birthKey(a[0]).localeCompare(birthKey(b[0]), 'ko'));
-      let right = 0;
-      for (const u of units) {
-        const uw = u.length * W + (u.length - 1) * CG; const c = want(u);
-        let x = c == null ? right : Math.max(right, c - uw / 2);
-        u.forEach((p, i) => pos.set(p.name, { x: x + i * (W + CG), y: g * (H + GY), p }));
-        right = x + uw + GX; maxX = Math.max(maxX, right);
-      }
-    });
-    const height = byGen.length * (H + GY) - GY + 8;
+    }
+    const unitW = (u) => u.m.length * W + (u.m.length - 1) * CG;
+    const wid = new Map();
+    const width = (u, seen = new Set()) => {
+      if (wid.has(u)) return wid.get(u); if (seen.has(u)) return unitW(u); seen.add(u);
+      const kw = u.kids.reduce((n, k) => n + width(k, seen), 0) + Math.max(0, u.kids.length - 1) * GX;
+      const w = Math.max(unitW(u), kw); wid.set(u, w); return w;
+    };
+    const placed = new Set();
+    const place = (u, left) => {
+      if (placed.has(u)) return; placed.add(u);
+      const w = width(u); const kw = u.kids.reduce((n, k) => n + width(k), 0) + Math.max(0, u.kids.length - 1) * GX;
+      let cx = left + (w - kw) / 2; for (const k of u.kids) { place(k, cx); cx += width(k) + GX; }
+      // 부모는 자녀 덩어리들의 가운데 위에
+      let center = left + w / 2;
+      if (u.kids.length) { const xs = u.kids.map((k) => { const a = pos.get(k.m[0].name), b = pos.get(k.m[k.m.length - 1].name); return a && b ? (a.x + b.x + W) / 2 : null; }).filter((x) => x != null); if (xs.length) center = (Math.min(...xs) + Math.max(...xs)) / 2; }
+      const x0 = center - unitW(u) / 2;
+      u.m.forEach((p, i) => pos.set(p.name, { x: x0 + i * (W + CG), y: gen.get(p.name) * (H + GY), p }));
+    };
+    let left = 0; for (const r of rootOrder) { place(r, left); left += width(r) + TREE_GAP; }
+    for (const u of units) if (!placed.has(u)) { place(u, left); left += width(u) + TREE_GAP; } // 혹시 남은 덩어리
+    // 왼쪽 끝을 0에 맞추기
+    const minX = Math.min(...[...pos.values()].map((q) => q.x)); for (const q of pos.values()) q.x -= minX;
+    const maxX = Math.max(...[...pos.values()].map((q) => q.x + W)) + GX;
+    const height = (Math.max(...[...gen.values()]) + 1) * (H + GY) - GY + 8;
     let lines = '';
     for (const [n, { x, y, p }] of pos) { // 부부 줄
       if (p.spouse && pos.has(p.spouse) && n < p.spouse) { const o = pos.get(p.spouse); if (o.y === y) lines += `<path d="M${Math.min(x, o.x) + W},${y + H / 2}H${Math.max(x, o.x)}" class="ft-sp"/>`; }
     }
-    for (const [, { x, y, p }] of pos) { // 부모 → 아이
+    for (const [, { x, y, p }] of pos) { // 부모 → 아이 (부모 사이 가운데에서 내려와 아이 위로)
       const pars = [p.father, p.mother].filter((n) => n && pos.has(n)).map((n) => pos.get(n)); if (!pars.length) continue;
-      const px = pars.reduce((a, b) => a + b.x + W / 2, 0) / pars.length, py = Math.max(...pars.map((q) => q.y)) + H; const mid = y - GY / 2;
-      lines += `<path d="M${px},${pars.length === 2 && pars[0].y === pars[1].y ? pars[0].y + H / 2 : py}V${mid}H${x + W / 2}V${y}" class="ft-ln"/>`;
+      const px = pars.reduce((a, b) => a + b.x + W / 2, 0) / pars.length; const py = pars.length === 2 && pars[0].y === pars[1].y ? pars[0].y + H / 2 : Math.max(...pars.map((q) => q.y)) + H;
+      const mid = y - GY / 2 + (Math.abs(px - (x + W / 2)) > 600 ? 8 : 0);
+      lines += `<path d="M${px},${py}V${mid}H${x + W / 2}V${y}" class="ft-ln"/>`;
     }
     const nodes = [...pos.values()].map(({ x, y, p }) => `<a href="#/people/${encodeURIComponent(p.name)}" class="ft-node" style="left:${x}px;top:${y}px;width:${W}px;height:${H}px">
       ${p.photo ? `<img src="${YT.thumbUrl(p.photo)}" alt="" loading="lazy">` : `<span class="ft-av" style="--h:${[...p.name].reduce((s, c) => s + c.charCodeAt(0), 0) % 360}">${esc(p.name.slice(-2))}</span>`}
       <span class="ft-t"><b>${esc(p.name)}</b>${p.relation ? `<small>${esc(p.relation)}</small>` : ''}</span></a>`).join('');
-    wrap.innerHTML = `<div class="ft-scroll"><div class="ft-canvas" style="width:${Math.max(0, maxX - GX)}px;height:${height}px"><svg width="${Math.max(0, maxX - GX)}" height="${height}" aria-hidden="true">${lines}</svg>${nodes}</div></div>
-      <p class="muted small">${pos.size}명이 이어져 있어요. 화면보다 넓으면 옆으로 밀어 보세요.</p>`;
+    const CW = Math.max(0, maxX - GX);
+    wrap.innerHTML = `<div class="ft-tools"><span class="muted small">${pos.size}명 · ${rootOrder.length}집안</span><div class="seg-btns"><button type="button" class="chip" data-z="-1" aria-label="작게">－</button><button type="button" class="chip" data-z="fit">화면에 맞추기</button><button type="button" class="chip" data-z="1" aria-label="크게">＋</button></div></div>
+      <div class="ft-scroll" id="ftScroll"><div class="ft-size" id="ftSize"><div class="ft-canvas" id="ftCanvas" style="width:${CW}px;height:${height}px"><svg width="${CW}" height="${height}" aria-hidden="true">${lines}</svg>${nodes}</div></div></div>
+      <p class="muted small">화면보다 넓으면 옆으로 밀거나 ‘화면에 맞추기’를 눌러 보세요. 이름을 누르면 그 사람 이야기로 가요.</p>`;
+    // 확대·축소 (이 기기에 기억)
+    let z = 1; try { z = parseFloat(localStorage.getItem('yt_ft_zoom')) || 0; } catch {}
+    const box = YT.$('#ftScroll'), sz = YT.$('#ftSize'), cv = YT.$('#ftCanvas');
+    const fitZ = () => Math.max(0.35, Math.min(1, (box.clientWidth - 8) / CW));
+    const apply = () => { cv.style.transform = `scale(${z})`; sz.style.width = CW * z + 'px'; sz.style.height = height * z + 'px'; try { localStorage.setItem('yt_ft_zoom', String(z)); } catch {} };
+    if (!z) z = fitZ() < 0.6 ? 0.6 : fitZ(); apply();
+    // 나(로그인한 사람, 없으면 관계가 ‘나’인 사람)를 표시하고 그 자리로 옮겨 보여 준다
+    const meName = [YT.state.user && YT.state.user.display_name, [...pos.values()].find((q) => q.p.relation === '나')?.p.name].find((n) => n && pos.has(n));
+    if (meName) { const el = cv.querySelector(`[href="#/people/${encodeURIComponent(meName)}"]`); if (el) el.classList.add('me'); const q = pos.get(meName); box.scrollLeft = Math.max(0, (q.x + W / 2) * z - box.clientWidth / 2); }
+    wrap.querySelector('.ft-tools').onclick = (e) => { const b = e.target.closest('[data-z]'); if (!b) return; z = b.dataset.z === 'fit' ? fitZ() : Math.max(0.35, Math.min(1.5, Math.round((z + 0.15 * +b.dataset.z) * 100) / 100)); apply(); };
   });
 })();

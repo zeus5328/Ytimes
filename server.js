@@ -1161,6 +1161,25 @@ route('DELETE', '/api/cards/:id', 'reporter', ({ user, params }) => {
 });
 
 // ── 우리 집 기록: 연표(milestone)·성장(growth)·버킷리스트(bucket)·당번(chore)·가족회의(meeting)
+// 방학계획표 — 하루 생활계획(동그라미), 방학 목표, 날마다 체크하는 습관
+const HHMM = (v) => (/^([01]\d|2[0-3]):[0-5]\d$/.test(String(v || '')) ? String(v) : '');
+const YMD = (v) => (/^\d{4}-\d{2}-\d{2}$/.test(String(v || '')) ? String(v) : '');
+function vacationChecks(src, nHabits) {
+  const out = {}; if (!src || typeof src !== 'object') return out;
+  for (const [k, v] of Object.entries(src).slice(0, 150)) { if (!YMD(k) || !Array.isArray(v)) continue; const xs = [...new Set(v.map(Number).filter((i) => Number.isInteger(i) && i >= 0 && i < nHabits))].sort((a, b) => a - b); if (xs.length) out[k] = xs; }
+  return out;
+}
+function vacationData(src, d) {
+  if (!d.student) fail(400, '누구의 방학계획표인지 적어 주세요.');
+  d.start = YMD(d.start); d.end = YMD(d.end);
+  if (!d.start || !d.end || d.end < d.start) fail(400, '방학 시작일과 끝나는 날을 확인해 주세요.');
+  if ((Date.parse(d.end) - Date.parse(d.start)) / 864e5 > 120) fail(400, '방학 기간은 120일까지 정할 수 있어요.');
+  const arr = (v, n) => (Array.isArray(v) ? v.slice(0, n) : []);
+  const goals = arr(src.goals, 10).map((x) => ({ text: str(x && x.text, 60), done: !!(x && x.done) })).filter((x) => x.text);
+  const routine = arr(src.routine, 16).map((x) => ({ start: HHMM(x && x.start), end: HHMM(x && x.end), label: str(x && x.label, 20) })).filter((x) => x.label && x.start && x.end && x.start !== x.end);
+  const habits = arr(src.habits, 8).map((x) => str(x, 30)).filter(Boolean);
+  return { goals, routine, habits, checks: vacationChecks(src.checks, habits.length) };
+}
 const ITEM_KINDS = {
   milestone: { s: { title: 80, note: 400, person: 30, emoji: 8, type: 12 } },
   growth: { s: { person: 30, note: 200 }, n: { height: [20, 230], weight: [1, 200] } },
@@ -1169,6 +1188,7 @@ const ITEM_KINDS = {
   meeting: { s: { title: 80, agenda: 2000, attendees: 120, notes: 2000 }, d: true },
   prep: { s: { title: 80, place: 80, note: 600 }, a: { members: [30, 30] }, p: true },
   address: { s: { name: 40, zip: 10, addr1: 120, addr2: 120, phone: 30, note: 60 }, b: ['send'], role: 'editor' },
+  vacation: { s: { student: 30, title: 60, season: 20, start: 10, end: 10, motto: 120 }, v: true }, // 방학계획표
 };
 const kindOk = (kind, user) => !ITEM_KINDS[kind]?.role || isRole(user, ITEM_KINDS[kind].role);
 function itemData(kind, body) {
@@ -1188,6 +1208,7 @@ function itemData(kind, body) {
     if (!d.title) fail(400, '행사 이름을 적어주세요.');
   }
   if (kind === 'address' && (!d.name || !d.addr1)) fail(400, '받는 분 이름과 주소를 적어주세요.');
+  if (spec.v) Object.assign(d, vacationData(src, d));
   return d;
 }
 const itemOut = (r, user) => { let data = {}; try { data = JSON.parse(r.data); } catch {} return { id: r.id, kind: r.kind, date: r.date, data, author_name: r.author_name, created: r.created, updated: r.updated, can_edit: !!user && (r.author_id === user.id || isRole(user, 'staff')) }; };
@@ -1209,12 +1230,14 @@ route('PUT', '/api/items/:id', 'subscriber', ({ params, body, user }) => {
   const r = get('SELECT * FROM items WHERE id=? AND deleted=0', params.id) || fail(404, '기록을 찾을 수 없어요.');
   // 버킷리스트 달성·회의 결정 체크는 가족 누구나, 그 밖의 수정은 쓴 사람 또는 평기자 이상
   if (!kindOk(r.kind, user)) fail(403, '권한이 없습니다.');
-  const quick = body.quick === true && (r.kind === 'bucket' || r.kind === 'meeting' || r.kind === 'prep');
+  const quick = body.quick === true && (r.kind === 'bucket' || r.kind === 'meeting' || r.kind === 'prep' || r.kind === 'vacation');
   if (!quick && r.author_id !== user.id && !isRole(user, 'staff')) fail(403, '내가 쓴 기록만 고칠 수 있어요.');
   let data;
   if (quick) { // 체크 표시만 바꾼다 (다른 내용은 그대로)
     const old = JSON.parse(r.data || '{}'); const src = body.data && typeof body.data === 'object' ? body.data : {};
-    data = r.kind === 'prep' ? { ...old, checklist: (old.checklist || []).map((x, i) => ({ ...x, done: !!(Array.isArray(src.checklist) && src.checklist[i] && src.checklist[i].done) })) }
+    if (r.kind === 'vacation' && r.author_id !== user.id && !isRole(user, 'staff')) fail(403, '내 방학계획표만 체크할 수 있어요.');
+    data = r.kind === 'vacation' ? { ...old, checks: vacationChecks(src.checks, (old.habits || []).length), goals: (old.goals || []).map((x, i) => ({ ...x, done: !!(Array.isArray(src.goals) && src.goals[i] && src.goals[i].done) })) }
+      : r.kind === 'prep' ? { ...old, checklist: (old.checklist || []).map((x, i) => ({ ...x, done: !!(Array.isArray(src.checklist) && src.checklist[i] && src.checklist[i].done) })) }
       : r.kind === 'bucket' ? { ...old, done: !!src.done } : { ...old, decisions: (old.decisions || []).map((x, i) => ({ ...x, done: !!(Array.isArray(src.decisions) && src.decisions[i] && src.decisions[i].done) })) };
   } else data = itemData(r.kind, body);
   const date = /^\d{4}-\d{2}-\d{2}$/.test(body.date || '') ? body.date : r.date;

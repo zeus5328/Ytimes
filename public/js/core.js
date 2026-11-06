@@ -237,7 +237,8 @@
     const u = YT.state.user; const tt = !!u && (YT.can('admin') || u.timetable_access);
     return [
       { name: '신문', items: [['#/', '1면', ['#/'], '오늘의 신문'], ['#/articles', '기사', ['#/articles', '#/article/', '#/section/', '#/recipes', '#/map', '#/read'], '코너별 기사 · 크게 읽기 · 레시피북 · 여행 지도'], ['#/print', '지면', ['#/print'], '이달의 지면 · 합본호']] },
-      { name: '일정', items: [['#/agenda', '일정', ['#/agenda', '#/calendar', '#/anniversaries'], '오늘 · 달력 · 생일·기념일'], YT.can('subscriber') && ['#/todo', '할 일', ['#/todo'], '당번 · 가족회의 · 버킷리스트'], tt && ['#/timetable', '시간표', ['#/timetable'], '학교·학원 시간표']].filter(Boolean) },
+      { name: '일정', items: [['#/agenda', '일정', ['#/agenda', '#/calendar', '#/anniversaries'], '오늘 · 달력 · 생일·기념일'], YT.can('subscriber') && ['#/todo', '할 일', ['#/todo'], '당번 · 가족회의 · 버킷리스트']].filter(Boolean) },
+      u && { name: '학교생활', items: [[tt ? '#/timetable' : '#/vacation', '학교생활', ['#/timetable', '#/vacation'], '시간표 · 방학계획표']] },
       { name: '가족', items: [['#/board', '가족 광장', ['#/board'], '투표 · 오늘의 한마디'], ['#/people', '가족 앨범', ['#/people', '#/family-tree', '#/growth', '#/timeline'], '인물 · 가계도 · 성장 기록 · 가족 연표'], ['#/post', '우체국', ['#/post'], '편지·카드 · 타임캡슐'], YT.can('admin') && ['#/studio', '사진관', ['#/studio'], '사진 보관·앨범'], YT.can('reporter') && ['#/deeds', '착한 일', ['#/deeds'], '착한 일 하고 포인트 받기'], [YT.can('reporter') ? '#/games/lotto' : '#/games', '오락실', ['#/games'], '로또복권 · 즉석복권 · 사다리게임']].filter(Boolean) },
       YT.can('reporter') && { name: '편집국', items: [['#/newsroom', '편집실', ['#/newsroom', '#/write'], '기사 쓰기 · 검토 · 발행'], ['#/reporters', '기자단', ['#/reporters'], '배지 · 시상식'], ['#/points', '원고료', ['#/points'], '포인트 · 쿠폰 가게']] },
       { name: '설정', items: [['#/settings', '설정', ['#/settings', '#/guide'], u ? (YT.can('admin') ? '내 정보 · 화면 · 신문 정보 · 가족 계정 · 자료 관리' : '내 정보 · 화면 설정') : '화면 밝기 · 글자 크기']] },
@@ -253,6 +254,7 @@
     deeds: [['#/deeds', '착한 일'], ['#/points', '내 포인트 · 쿠폰']],
     games: [['#/games/lotto', '로또복권', 'reporter'], ['#/games/scratch', '즉석복권', 'reporter'], ['#/games', '사다리게임']],
     schedule: [['#/agenda', '오늘'], ['#/calendar', '달력'], ['#/anniversaries', '생일·기념일']],
+    school: [['#/timetable', '시간표'], ['#/vacation', '방학계획표']],
   };
   YT.subTabs = (group, variant) => {
     const h = (location.hash || '#/').replace(/\?.*/, '');
@@ -348,7 +350,7 @@
       </div></div>`;
     // 휴대폰 아래 탭 (1면 · 기사 · 캘린더 · 가족 · 전체)
     let tb = $('#tabBar'); if (!tb) { tb = document.createElement('nav'); tb.id = 'tabBar'; tb.className = 'tab-bar'; tb.setAttribute('aria-label', '아래 메뉴'); document.body.appendChild(tb); }
-    tb.innerHTML = [['#/', '1면', 'home', '#/'], ['#/articles', '기사', 'news', '#/articles #/article/ #/section/ #/read #/recipes #/map #/print #/newsroom #/write #/reporters #/points'], ['#/agenda', '일정', 'cal', '#/agenda #/calendar #/anniversaries #/timetable #/todo'], ['#/board', '가족', 'fam', '#/board #/people #/family-tree #/growth #/timeline #/post #/studio #/games #/deeds']]
+    tb.innerHTML = [['#/', '1면', 'home', '#/'], ['#/articles', '기사', 'news', '#/articles #/article/ #/section/ #/read #/recipes #/map #/print #/newsroom #/write #/reporters #/points'], ['#/agenda', '일정', 'cal', '#/agenda #/calendar #/anniversaries #/timetable #/vacation #/todo'], ['#/board', '가족', 'fam', '#/board #/people #/family-tree #/growth #/timeline #/post #/studio #/games #/deeds']]
       .map(([h, l, ic, m]) => `<a href="${h}" data-nav="${m}">${TAB_ICON[ic]}<span>${l}</span></a>`).join('')
       + `<button type="button" id="tabAll">${TAB_ICON.all}<span>전체</span>${YT.state.todo ? '<i class="tab-dot" aria-label="처리할 기사 있음"></i>' : ''}</button>`;
     $('#tabAll').onclick = () => YT.openMenu();

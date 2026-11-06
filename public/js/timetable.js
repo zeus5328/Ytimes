@@ -38,7 +38,7 @@
   YT.addRoute('/timetable', async (view) => {
     const r = await YT.api('/api/timetables');
     if (!r.allowed) {
-      view.innerHTML = YT.pageHead('', '시간표', '학교 수업과 학원 일정을 한 주에 모아보는 공간입니다.')
+      view.innerHTML = YT.subTabs('school') + YT.pageHead('', '시간표', '학교 수업과 학원 일정을 한 주에 모아보는 공간입니다.')
         + '<div class="empty-state"><h2>보호된 공간이에요</h2><p>학생의 시간표는 관리자와 지정된 가족 기자만 확인할 수 있습니다. 권한이 있는 계정으로 로그인해주세요.</p>'
         + (YT.state.user ? '' : `<a class="btn primary" href="#/login?next=${encodeURIComponent('#/timetable')}">로그인</a>`) + '</div>';
       return;
@@ -50,7 +50,7 @@
 
     const draw = () => {
       const t = list.find((x) => x.id === curId);
-      view.innerHTML = YT.pageHead('', '나의 일주일, 시간표', '학교에서 학원까지. 하루의 흐름을 한눈에 확인해요.',
+      view.innerHTML = YT.subTabs('school') + YT.pageHead('', '나의 일주일, 시간표', '학교에서 학원까지. 하루의 흐름을 한눈에 확인해요.',
         `<button class="btn primary" id="newTt">+ 새 시간표</button>`)
         + `<div class="chips">${list.map((x) => `<button class="chip ${x.id === curId ? 'on' : ''}" data-tt="${x.id}">${esc(x.student)} · ${x.school_year} ${esc(x.term || '')}</button>`).join('')}</div>`
         + (t ? body(t) : '<div class="empty-state"><h2>첫 시간표를 만들어보세요</h2><p>학생 이름과 교시를 정하면 요일별 수업을 넣을 수 있어요.</p></div>');
