@@ -105,6 +105,8 @@
         <label>편집자의 말 (1면 EDITOR’S NOTE)<textarea class="input" name="editor_note" rows="5">${esc(S.editor_note)}</textarea></label>
         <div class="block"><span>제호 로고 (선택)</span><div class="row gap" id="logoRow">${S.logo ? `<img src="${YT.photoUrl(S.logo)}" class="thumb-sm" alt="현재 로고">` : '<span class="muted small">로고가 없으면 신문 이름 글자만 표시돼요.</span>'}
           <label class="btn small" for="logoFile">로고 올리기</label><input type="file" accept="image/*" id="logoFile" hidden>${S.logo ? '<button type="button" class="btn small danger ghost" id="logoRm">로고 빼기</button>' : ''}</div></div>
+        <div class="block"><span>아래쪽 유니 사진 (선택)</span><div class="row gap">${S.mascot ? `<img src="${YT.photoUrl(S.mascot)}" class="thumb-sm round" alt="현재 유니 사진">` : '<span class="muted small">화면 맨 아래 신문 이름 왼쪽에 동그랗게 보여요.</span>'}
+          <label class="btn small" for="mascotFile">사진 올리기</label><input type="file" accept="image/*" id="mascotFile" hidden>${S.mascot ? '<button type="button" class="btn small danger ghost" id="mascotRm">사진 빼기</button>' : ''}</div></div>
         <div class="set-actions"><button class="btn primary">신문 정보 저장</button></div></form>`, { desc: '1면 제호, 머리·바닥 문구, 이달의 지면에 함께 쓰여요.' })
       + panel('누가 볼 수 있나요', row('가족만 보기', S.members_only === '1' ? '켜짐 — 가족 계정으로 로그인해야 신문을 볼 수 있어요. 계정 없는 친척은 지면의 ‘친척에게 링크 보내기’로 보내 주세요.' : '꺼짐 — 사이트 주소를 아는 사람은 누구나 발행된 기사를 읽을 수 있어요.', toggle('members_only', S.members_only === '1', '가족만 보기')))
       + panel('미리보기', `<div class="set-mast"><small>${esc(S.kicker)}</small><b>${esc(S.site_name)}</b><span>${esc(S.tagline)} · 창간 ${esc(S.founded)}</span></div>`);
@@ -113,6 +115,9 @@
     let logo = YT.state.settings.logo;
     YT.$('#logoFile').onchange = async (e) => { try { logo = await YT.uploadImage(e.target.files[0], 'logo'); YT.toast('로고를 올렸어요. 저장을 눌러주세요.'); } catch (err) { YT.err(err); } };
     const rm = YT.$('#logoRm'); if (rm) rm.onclick = () => { logo = ''; YT.toast('저장을 누르면 로고가 빠져요.'); };
+    let mascot = YT.state.settings.mascot || '';
+    YT.$('#mascotFile').onchange = async (e) => { try { mascot = await YT.uploadImage(e.target.files[0], 'logo'); YT.toast('유니 사진을 올렸어요. 저장을 눌러주세요.'); } catch (err) { YT.err(err); } };
+    const mrm = YT.$('#mascotRm'); if (mrm) mrm.onclick = () => { mascot = ''; YT.toast('저장을 누르면 유니 사진이 빠져요.'); };
     const mo = view.querySelector('input[name=members_only]');
     if (mo) mo.onchange = async () => {
       if (mo.checked && !YT.confirm('가족만 보기를 켤까요? 로그인하지 않은 사람은 기사·사진·일정을 볼 수 없게 돼요.')) { mo.checked = false; return; }
@@ -120,7 +125,7 @@
     };
     YT.$('#settingsForm').onsubmit = async (e) => {
       e.preventDefault();
-      try { const r = await YT.put('/api/settings', { ...Object.fromEntries(new FormData(e.target)), logo }); YT.state.settings = r.settings; YT.renderChrome(); YT.toast('신문 정보를 저장했어요.'); draw(view, 'paper'); } catch (err) { YT.err(err); }
+      try { const r = await YT.put('/api/settings', { ...Object.fromEntries(new FormData(e.target)), logo, mascot }); YT.state.settings = r.settings; YT.renderChrome(); YT.toast('신문 정보를 저장했어요.'); draw(view, 'paper'); } catch (err) { YT.err(err); }
     };
   }
 

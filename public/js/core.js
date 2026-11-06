@@ -326,7 +326,7 @@
     const lo = $('#logoutBtn');
     if (lo) lo.onclick = () => YT.logout();
     $('#siteFooter').innerHTML = `<div class="container foot">
-      <div class="foot-brand"><b>${esc(s.site_name)}</b><span>${esc(s.kicker)} · 창간 ${esc(s.founded)}</span></div>
+      <div class="foot-id">${s.mascot ? `<img class="foot-mascot" src="${YT.thumbUrl(s.mascot)}" alt="유니" loading="lazy">` : ''}<div class="foot-brand"><b>${esc(s.site_name)}</b><span>${esc(s.kicker)} · 창간 ${esc(s.founded)}</span></div></div>
       <nav class="foot-links" aria-label="아래 메뉴">${YT.can('reporter') ? '<a href="#/newsroom">편집실</a>' : ''}<a href="#/reporters">기자단</a><a href="#/settings">설정</a><a href="#/guide">이용 안내</a></nav></div>`;
     YT.applyPrefs();
     markNav();

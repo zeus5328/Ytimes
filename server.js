@@ -525,6 +525,7 @@ function settingsOut() {
     founded: getSetting('founded', '2026-10-27'),
     editor_note: getSetting('editor_note', '작은 순간도,\n우리에게는 큰 뉴스.\n\n서로의 하루를 읽고\n가족의 시간을 함께 쌓아갑니다.'),
     logo: getSetting('logo', ''),
+    mascot: getSetting('mascot', ''), // 아래쪽 신문 이름 왼쪽의 유니 사진
     members_only: getSetting('members_only', '0') === '1' ? '1' : '0',
     cloud: CLOUD ? '1' : '',
   };
@@ -618,7 +619,7 @@ route('DELETE', '/api/users/:id', 'admin', ({ params, user }) => {
   return { ok: true };
 });
 route('PUT', '/api/settings', 'admin', ({ body }) => {
-  for (const k of ['site_name', 'tagline', 'kicker', 'founded', 'editor_note', 'logo']) if (k in body) setSetting(k, str(body[k], 2000));
+  for (const k of ['site_name', 'tagline', 'kicker', 'founded', 'editor_note', 'logo', 'mascot']) if (k in body) setSetting(k, str(body[k], 2000));
   if ('members_only' in body) setSetting('members_only', body.members_only === '1' || body.members_only === true ? '1' : '0');
   return { settings: settingsOut() };
 });
