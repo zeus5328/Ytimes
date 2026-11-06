@@ -1837,6 +1837,14 @@ route('DELETE', '/api/deeds/:id', 'reporter', ({ user, params }) => {
   if (x.user_id !== user.id || x.status !== 'pending') fail(403, '확인 전인 내 기록만 지울 수 있어요.');
   run('DELETE FROM good_deeds WHERE id=?', x.id); return { ok: true };
 });
+route('PUT', '/api/deeds/:id', 'reporter', ({ user, params, body }) => {
+  const x = get('SELECT * FROM good_deeds WHERE id=?', params.id) || fail(404, '기록을 찾을 수 없어요.');
+  if (!(x.user_id === user.id && x.status === 'pending') && !isRole(user, 'admin')) fail(403, '확인 전인 내 착한 일만 고칠 수 있어요.');
+  const title = x.menu_id ? x.title : (str(body.title, 40) || fail(400, '어떤 착한 일을 했는지 적어 주세요.'));
+  const photo = body.photo === '' ? '' : body.photo && get('SELECT id FROM photos WHERE id=?', body.photo) ? body.photo : x.photo;
+  run('UPDATE good_deeds SET title=?, note=?, photo=? WHERE id=?', title, str(body.note, 300), photo, x.id);
+  return { ok: true };
+});
 route('POST', '/api/deeds/:id/review', 'senior', ({ user, params, body }) => {
   const x = get('SELECT * FROM good_deeds WHERE id=?', params.id) || fail(404, '기록을 찾을 수 없어요.');
   if (x.status !== 'pending') fail(400, '이미 확인한 착한 일이에요.');

@@ -16,7 +16,7 @@
           <small class="muted">${when(x.created)}${x.reviewer_name ? ` · ${esc(x.reviewer_name)} 확인` : ''}${x.review_note ? ` · “${esc(x.review_note)}”` : ''}</small></div>
         <div class="dd-side">${approve ? `<label class="dd-pts"><input class="input sm" inputmode="numeric" value="${x.points || 300}" data-pts="${x.id}" aria-label="줄 포인트"><span>P</span></label>
             <button class="btn small primary" data-ok="${x.id}">확인하고 주기</button><button class="btn small ghost" data-no="${x.id}">아직이에요</button>`
-          : x.status === 'approved' ? `<b class="dd-plus">+${P(x.points)}P</b>` : x.status === 'pending' ? `<span class="muted small">${x.points ? `+${P(x.points)}P 예정` : '포인트는 확인할 때'}</span><button class="linklike small" data-del="${x.id}">취소</button>` : ''}</div></div>`;
+          : x.status === 'approved' ? `<b class="dd-plus">+${P(x.points)}P</b>` : x.status === 'pending' ? `<span class="muted small">${x.points ? `+${P(x.points)}P 예정` : '포인트는 확인할 때'}</span><button class="linklike small" data-edit="${x.id}">고치기</button><button class="linklike small" data-del="${x.id}">취소</button>` : ''}</div></div>`;
     box.innerHTML = `<section class="g-hero dd-hero"><div class="g-hero-main"><span class="g-eyebrow">GOOD DEEDS</span><h2 class="g-title">오늘 <b>착한 일</b> 했나요?</h2>
         <p class="g-sub">한 일을 올리면 부모님이 확인하고 포인트를 줘요. 하루 ${d.daily}개까지 · 오늘 ${d.today}개 올렸어요</p></div>
         <div class="g-wallet"><span>착한 일로 받은 포인트</span><b>${P(d.earned)}<small>P</small></b><a href="#/points">내 포인트 · 쿠폰 →</a></div></section>
@@ -36,18 +36,21 @@
           <form class="form-row dd-row" data-row=""><label style="max-width:4.5rem">그림<input class="input sm" name="icon" value="🌟" maxlength="8"></label><label class="grow">새 착한 일<input class="input sm" name="title" maxlength="30" placeholder="예: 신발 정리"></label>
           <label style="max-width:7rem">포인트<input class="input sm" name="points" inputmode="numeric" value="300"></label><button class="btn small primary">추가</button></form></div></details>` : ''}`;
 
-    const submit = (m) => {
-      const md = YT.modal(`<h2 class="modal-title">${m ? `${esc(m.icon || '🌟')} ${esc(m.title)}` : '✏️ 착한 일 직접 적기'}</h2>
-        <form class="form" id="ddForm">${m ? '' : '<label>무엇을 했나요?<input class="input" name="title" maxlength="40" required placeholder="예: 할머니께 안부 전화"></label>'}
-          <label>${m ? '어떻게 했는지 한 줄로 (선택)' : '조금 더 자세히 (선택)'}<textarea class="input" name="note" rows="3" maxlength="300" placeholder="예: 저녁 먹고 그릇을 모두 씻었어요"></textarea></label>
-          <div class="block"><span>사진 (선택)</span><div class="row gap"><label class="btn small" for="ddPh">사진 넣기</label><input type="file" id="ddPh" accept="image/*" hidden><span class="muted small" id="ddPhInfo">한 일을 찍어 올리면 확인이 빨라요</span></div></div>
+    const submit = (m, ex) => {
+      const md = YT.modal(`<h2 class="modal-title">${ex ? `✏️ 착한 일 고치기${m ? ` · ${esc(m.title)}` : ''}` : m ? `${esc(m.icon || '🌟')} ${esc(m.title)}` : '✏️ 착한 일 직접 적기'}</h2>
+        <form class="form" id="ddForm">${m ? '' : `<label>무엇을 했나요?<input class="input" name="title" maxlength="40" required placeholder="예: 할머니께 안부 전화" value="${ex ? esc(ex.title) : ''}"></label>`}
+          <label>${m ? '어떻게 했는지 한 줄로 (선택)' : '조금 더 자세히 (선택)'}<textarea class="input" name="note" rows="3" maxlength="300" placeholder="예: 저녁 먹고 그릇을 모두 씻었어요">${ex ? esc(ex.note || '') : ''}</textarea></label>
+          <div class="block"><span>사진 (선택)</span><div class="row gap"><label class="btn small" for="ddPh">사진 넣기</label><input type="file" id="ddPh" accept="image/*" hidden><span class="muted small" id="ddPhInfo">${ex && ex.photo ? '사진이 들어 있어요 (새로 넣으면 바뀌어요)' : '한 일을 찍어 올리면 확인이 빨라요'}</span></div></div>
           <p class="muted small">${m ? `부모님이 확인하면 <b>+${P(m.points)}P</b>가 들어와요.` : '포인트는 부모님이 확인하면서 정해 줘요.'}</p>
-          <div class="row gap end"><button class="btn primary">올리기</button></div></form>`);
-      let photo = '';
+          <div class="row gap end"><button class="btn primary">${ex ? '고친 내용 저장' : '올리기'}</button></div></form>`);
+      let photo = ex ? ex.photo || '' : '';
       md.el.querySelector('#ddPh').onchange = async (e) => { const info = md.el.querySelector('#ddPhInfo'); info.textContent = '사진 올리는 중…'; try { photo = await YT.uploadImage(e.target.files[0]); info.textContent = '사진을 넣었어요 ✓'; } catch (err) { info.textContent = ''; YT.err(err); } };
       md.el.querySelector('#ddForm').onsubmit = async (e) => {
         e.preventDefault(); const f = Object.fromEntries(new FormData(e.target));
-        try { await YT.post('/api/deeds', { menu_id: m ? m.id : '', title: f.title, note: f.note, photo }); md.close(); YT.toast('착한 일을 올렸어요! 부모님이 확인해 줄 거예요.'); page(box); } catch (err) { YT.err(err); }
+        try {
+          if (ex) { await YT.put('/api/deeds/' + ex.id, { title: f.title, note: f.note, photo }); md.close(); YT.toast('고쳤어요.'); page(box); return; }
+          await YT.post('/api/deeds', { menu_id: m ? m.id : '', title: f.title, note: f.note, photo }); md.close(); YT.toast('착한 일을 올렸어요! 부모님이 확인해 줄 거예요.'); page(box);
+        } catch (err) { YT.err(err); }
       };
     };
     box.onclick = async (e) => {
@@ -55,6 +58,7 @@
       try {
         if (b.dataset.menu) submit(d.menu.find((m) => m.id === b.dataset.menu));
         else if (b.dataset.free) submit(null);
+        else if (b.dataset.edit) { const ex = d.mine.find((x) => x.id === b.dataset.edit); submit(ex.menu_id ? d.menu.find((m) => m.id === ex.menu_id) || null : null, ex); }
         else if (b.dataset.del) { if (!YT.confirm('올린 착한 일을 취소할까요?')) return; await YT.del('/api/deeds/' + b.dataset.del); page(box); }
         else if (b.dataset.ok) { const pts = box.querySelector(`[data-pts="${b.dataset.ok}"]`).value; b.disabled = true; await YT.post(`/api/deeds/${b.dataset.ok}/review`, { action: 'approve', points: pts }); YT.toast(`확인했어요. ${P(pts)}포인트를 줬어요.`); page(box); }
         else if (b.dataset.no) { const note = window.prompt('어떤 점을 다시 확인할까요? (아이에게 보여요)', ''); if (note === null) return; await YT.post(`/api/deeds/${b.dataset.no}/review`, { action: 'reject', note }); YT.toast('다시 확인하도록 알려 줬어요.'); page(box); }
