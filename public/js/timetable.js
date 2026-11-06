@@ -1,4 +1,4 @@
-/* 시간표 */
+/* 수업 시간표 (학교생활) */
 (function () {
   'use strict';
   const { esc } = YT;
@@ -8,12 +8,18 @@
     '#f3e3b8', '#c9dfe9', '#ead1dc', '#d1e3dd', '#e2d9f0', '#f2d6c2', '#d7e2c9', '#cfd8e3', '#ecdcd0', '#dfe8d5'];
   const colorOf = (subject, map) => { if (!map.has(subject)) map.set(subject, PALETTE[map.size % PALETTE.length]); return map.get(subject); };
 
+  const whenLabel = (t) => [t.month ? `${t.month}월` : '', t.week ? `${t.week}주` : ''].filter(Boolean).join(' ');
   function ttForm(t) {
     const y = new Date().getFullYear();
-    return `<h2 class="modal-title">${t?.id ? '학생·교시 설정' : '새 시간표'}</h2><form id="ttForm" class="form">
+    const curM = new Date().getMonth() + 1;
+    return `<h2 class="modal-title">${t?.id ? '수업 시간표 설정' : '새 수업 시간표'}</h2><form id="ttForm" class="form">
+      <label>시간표 이름<input class="input" name="title" maxlength="40" value="${esc(t?.title || '')}" placeholder="(선택) 예: 2학기 기본 시간표 / 겨울방학 특강"></label>
       <div class="form-row"><label>학생 이름<input class="input" name="student" required maxlength="30" value="${esc(t?.student || '')}" placeholder="김도윤"></label>
       <label>학년도<select class="select" name="school_year">${[y - 1, y, y + 1].map((v) => `<option ${v === (t?.school_year || y) ? 'selected' : ''}>${v}</option>`).join('')}</select></label>
       <label>학기<select class="select" name="term">${['1학기', '2학기', '여름방학', '겨울방학'].map((v) => `<option ${v === t?.term ? 'selected' : ''}>${v}</option>`).join('')}</select></label></div>
+      <div class="form-row"><label>월<select class="select" name="month"><option value="0">정하지 않음</option>${Array.from({ length: 12 }, (_, i) => `<option value="${i + 1}" ${(t ? t.month : 0) === i + 1 ? 'selected' : ''}>${i + 1}월${!t && i + 1 === curM ? ' (이번 달)' : ''}</option>`).join('')}</select></label>
+      <label>주<select class="select" name="week"><option value="0">정하지 않음</option>${[1, 2, 3, 4, 5].map((w) => `<option value="${w}" ${(t ? t.week : 0) === w ? 'selected' : ''}>${w}주</option>`).join('')}</select></label></div>
+      <p class="muted small">매주 같은 기본 시간표라면 월·주는 비워 두세요. 특정 달이나 주에만 쓰는 시간표라면 골라 두면 구분하기 쉬워요.</p>
       <div class="form-row"><label>학교급<select class="select" name="level">${['초등', '중등', '고등'].map((v) => `<option ${v === t?.level ? 'selected' : ''}>${v}</option>`).join('')}</select></label>
       <label>학년<input class="input" name="grade" maxlength="10" value="${esc(t?.grade || '')}" placeholder="3"></label>
       <label>반<input class="input" name="class_no" maxlength="10" value="${esc(t?.class_no || '')}" placeholder="2"></label></div>
@@ -38,7 +44,7 @@
   YT.addRoute('/timetable', async (view) => {
     const r = await YT.api('/api/timetables');
     if (!r.allowed) {
-      view.innerHTML = YT.subTabs('school') + YT.pageHead('', '시간표', '학교 수업과 학원 일정을 한 주에 모아보는 공간입니다.')
+      view.innerHTML = YT.subTabs('school') + YT.pageHead('', '수업 시간표', '학교 수업과 학원 일정을 한 주에 모아보는 공간입니다.')
         + '<div class="empty-state"><h2>보호된 공간이에요</h2><p>학생의 시간표는 관리자와 지정된 가족 기자만 확인할 수 있습니다. 권한이 있는 계정으로 로그인해주세요.</p>'
         + (YT.state.user ? '' : `<a class="btn primary" href="#/login?next=${encodeURIComponent('#/timetable')}">로그인</a>`) + '</div>';
       return;
@@ -50,16 +56,16 @@
 
     const draw = () => {
       const t = list.find((x) => x.id === curId);
-      view.innerHTML = YT.subTabs('school') + YT.pageHead('', '나의 일주일, 시간표', '학교에서 학원까지. 하루의 흐름을 한눈에 확인해요.',
-        `<button class="btn primary" id="newTt">+ 새 시간표</button>`)
-        + `<div class="chips">${list.map((x) => `<button class="chip ${x.id === curId ? 'on' : ''}" data-tt="${x.id}">${esc(x.student)} · ${x.school_year} ${esc(x.term || '')}</button>`).join('')}</div>`
-        + (t ? body(t) : '<div class="empty-state"><h2>첫 시간표를 만들어보세요</h2><p>학생 이름과 교시를 정하면 요일별 수업을 넣을 수 있어요.</p></div>');
+      view.innerHTML = YT.subTabs('school') + YT.pageHead('', '수업 시간표', '학교에서 학원까지. 하루의 흐름을 한눈에 확인해요.',
+        `<button class="btn primary" id="newTt">+ 새 수업 시간표</button>`)
+        + `<div class="chips">${list.map((x) => `<button class="chip ${x.id === curId ? 'on' : ''}" data-tt="${x.id}">${x.title ? `${esc(x.title)} · ${esc(x.student)}` : `${esc(x.student)} · ${x.school_year} ${esc(x.term || '')}`}${whenLabel(x) ? ` · ${whenLabel(x)}` : ''}</button>`).join('')}</div>`
+        + (t ? body(t) : '<div class="empty-state"><h2>첫 수업 시간표를 만들어보세요</h2><p>학생 이름과 교시를 정하면 요일별 수업을 넣을 수 있어요.</p></div>');
       YT.$('#newTt').onclick = () => openTt(null);
       YT.$$('[data-tt]').forEach((b) => (b.onclick = () => { curId = b.dataset.tt; draw(); }));
       if (!t) return;
       YT.$('#ttEdit').onclick = () => openTt(t);
       YT.$('#ttAdd').onclick = () => openItem(t, null);
-      YT.$('#ttDel').onclick = async () => { if (!YT.confirm(`${t.student} 시간표를 삭제할까요?`)) return; await YT.del('/api/timetables/' + t.id); list.splice(list.indexOf(t), 1); curId = list[0]?.id; draw(); YT.toast('시간표를 삭제했습니다.'); };
+      YT.$('#ttDel').onclick = async () => { if (!YT.confirm(`${t.title || t.student} 수업 시간표를 삭제할까요?`)) return; await YT.del('/api/timetables/' + t.id); list.splice(list.indexOf(t), 1); curId = list[0]?.id; draw(); YT.toast('시간표를 삭제했습니다.'); };
       YT.$('#ttImport').onclick = () => YT.$('#ttFile').click();
       YT.$('#ttFile').onchange = (e) => importCsv(t, e.target.files[0]);
       YT.$('#ttPrint').onclick = () => window.print();
@@ -84,9 +90,9 @@
       const isNow = (p) => { const [h, m] = periodTime(p).split(':').map(Number); const st = h * 60 + m; return nowD < 5 && nowMin >= st && nowMin < st + 45; };
       const td = (d) => (d === nowD ? ' class="today"' : '');
       const counts = { school: 0, afterschool: 0, academy: 0, activity: 0 }; t.items.forEach((i) => { if (i.type in counts) counts[i.type]++; });
-      return `<div class="tt-meta"><div><b>${esc(t.student)}</b> · ${t.school_year}학년도 ${esc(t.term || '')} · ${esc(t.level || '')} ${esc(t.grade || '')}${t.grade ? '학년' : ''} ${esc(t.class_no || '')}${t.class_no ? '반' : ''}
+      return `<div class="tt-meta"><div>${t.title ? `<b class="tt-title">${esc(t.title)}</b><br>` : ''}<b>${esc(t.student)}</b> · ${t.school_year}학년도 ${esc(t.term || '')}${whenLabel(t) ? ` · ${whenLabel(t)}` : ''} · ${esc(t.level || '')} ${esc(t.grade || '')}${t.grade ? '학년' : ''} ${esc(t.class_no || '')}${t.class_no ? '반' : ''}
         <span class="muted small"> · 학교 ${counts.school}교시 · 방과후 ${counts.afterschool}회 · 학원·활동 ${counts.academy + counts.activity}회</span></div>
-        <div class="row gap"><button class="btn small primary" id="ttAdd">+ 수업 추가</button><button class="btn small" id="ttEdit">학생·교시 설정</button>
+        <div class="row gap"><button class="btn small primary" id="ttAdd">+ 수업 추가</button><button class="btn small" id="ttEdit">시간표 설정</button>
         <button class="btn small" id="ttImport">파일 가져오기</button><button class="btn small" id="ttPrint">인쇄</button><button class="btn small danger ghost" id="ttDel">시간표 삭제</button>
         <input type="file" id="ttFile" accept=".csv,.txt" hidden></div></div>
         <div class="tt-dayview"><span class="muted small">요일 하루 보기</span>${days.map((d) => `<button class="chip ${dayView === d ? 'on' : ''}" data-dv="${d}">${DAYS[d]}</button>`).join('')}</div>
@@ -105,9 +111,9 @@
       m.el.querySelector('#ttForm').onsubmit = async (e) => {
         e.preventDefault(); const b = Object.fromEntries(new FormData(e.target).entries());
         try {
-          if (t) { Object.assign(t, b, { periods: +b.periods, school_year: +b.school_year }); await save(t); }
+          if (t) { Object.assign(t, b, { periods: +b.periods, school_year: +b.school_year, month: +b.month, week: +b.week }); await save(t); }
           else { const r = await YT.post('/api/timetables', { ...b, items: [] }); const fresh = (await YT.api('/api/timetables')).timetables; list.splice(0, list.length, ...fresh); curId = r.id; }
-          m.close(); draw(); YT.toast('시간표를 저장했습니다.');
+          m.close(); draw(); YT.toast('수업 시간표를 저장했습니다.');
         } catch (err) { YT.err(err); }
       };
     };

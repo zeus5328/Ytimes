@@ -41,7 +41,7 @@
           ${row('브라우저 알림', '유니 타임즈 창(탭)이 열려 있으면 휴대폰·컴퓨터 알림으로도 띄워요. 이 기기에만 저장돼요.', `<label class="set-switch"><input type="checkbox" id="pushToggle" ${YT.store.get('yt_push', '0') === '1' && 'Notification' in window && Notification.permission === 'granted' ? 'checked' : ''}><i aria-hidden="true"></i><span id="pushState">${!('Notification' in window) ? '이 브라우저는 지원하지 않아요' : Notification.permission === 'denied' ? '브라우저에서 막혀 있어요' : YT.store.get('yt_push', '0') === '1' ? '켜짐' : '꺼짐'}</span></label>`)}
           <p class="muted small">아이폰은 사파리에서 ‘홈 화면에 추가’한 뒤 그 아이콘으로 열어야 알림이 와요. 브라우저에서 막았다면 주소창 옆 자물쇠(사이트 설정)에서 알림을 허용해주세요.</p>`)
       + panel('내 권한', `<dl class="set-dl"><dt>권한</dt><dd>${esc(roleLine[0] || '')}</dd><dt>할 수 있는 일</dt><dd>${esc(roleLine[1] || '')}</dd>
-          <dt>시간표</dt><dd>${u.role === 'admin' || u.timetable_access ? '볼 수 있음' : '볼 수 없음 (관리자가 켜줄 수 있어요)'}</dd></dl>`);
+          <dt>수업 시간표</dt><dd>${u.role === 'admin' || u.timetable_access ? '볼 수 있음' : '볼 수 없음 (관리자가 켜줄 수 있어요)'}</dd></dl>`);
   }
   function meBind(view) {
     const lo = YT.$('#logoutMe'); if (lo) lo.onclick = () => YT.logout();

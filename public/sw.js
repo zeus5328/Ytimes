@@ -1,7 +1,7 @@
 /* 유니 타임즈 서비스 워커 — 앱처럼 빠르게 열리고, 인터넷이 끊겨도 마지막으로 본 신문을 보여 준다.
    · 버전이 붙은 화면 파일(/app.js?v=…, app.css?v=…)과 글꼴은 한 번 받으면 저장본을 바로 쓴다 (파일이 바뀌면 주소가 바뀜)
    · 첫 화면(index)과 글 자료(API)는 늘 서버에서 먼저 받아 최신을 쓰고, 받을 수 없을 때만 저장본을 쓴다 */
-const VERSION = 'yt-v18';
+const VERSION = 'yt-v19';
 const SHELL = `${VERSION}-shell`, API = `${VERSION}-api`, PHOTO = `${VERSION}-photo`, ASSET = `${VERSION}-asset`;
 const SHELL_FILES = ['/', '/manifest.webmanifest', '/favicon.svg', '/icon-192.png'];
 // 오프라인에서도 보여 줄 읽기 전용 자료

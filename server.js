@@ -460,6 +460,11 @@ db.exec(`CREATE TABLE IF NOT EXISTS notices (id TEXT PRIMARY KEY, user_id TEXT N
   link TEXT DEFAULT '', ukey TEXT UNIQUE, created TEXT NOT NULL, read INTEGER DEFAULT 0);
 CREATE INDEX IF NOT EXISTS notices_user ON notices(user_id, created);`);
 if (!all('PRAGMA table_info(photos)').some((c) => c.name === 'thumb')) db.exec('ALTER TABLE photos ADD COLUMN thumb INTEGER DEFAULT 0');
+// 수업 시간표: 이름 · 월 · 주 (0이면 정하지 않음)
+{ const tc = all('PRAGMA table_info(timetables)').map((c) => c.name);
+  if (!tc.includes('title')) db.exec("ALTER TABLE timetables ADD COLUMN title TEXT DEFAULT ''");
+  if (!tc.includes('month')) db.exec('ALTER TABLE timetables ADD COLUMN month INTEGER DEFAULT 0');
+  if (!tc.includes('week')) db.exec('ALTER TABLE timetables ADD COLUMN week INTEGER DEFAULT 0'); }
 if (!all('PRAGMA table_info(polls)').some((c) => c.name === 'allow_add')) db.exec('ALTER TABLE polls ADD COLUMN allow_add INTEGER DEFAULT 0');
 { const ec = all('PRAGMA table_info(events)').map((c) => c.name);
   if (!ec.includes('repeat')) db.exec("ALTER TABLE events ADD COLUMN repeat TEXT DEFAULT ''");          // '', weekly, biweekly, monthly, monthly_nth, yearly
@@ -1038,6 +1043,7 @@ function ttFields(body) {
   return {
     student: str(body.student, 30) || fail(400, '학생 이름을 입력해주세요.'), school_year: Number(body.school_year) || new Date().getFullYear(),
     term: str(body.term, 20), level: str(body.level, 10), grade: str(body.grade, 10), class_no: str(body.class_no, 10),
+    title: str(body.title, 40), month: Math.min(12, Math.max(0, parseInt(body.month, 10) || 0)), week: Math.min(5, Math.max(0, parseInt(body.week, 10) || 0)),
     periods: Math.min(10, Math.max(4, Number(body.periods) || 7)), start_time: /^\d{2}:\d{2}$/.test(body.start_time) ? body.start_time : '09:00',
     items: JSON.stringify(items.map(i => ({ id: str(i.id, 40) || uid(), day: Math.min(6, Math.max(0, Number(i.day) || 0)),
       type: ['school', 'afterschool', 'academy', 'activity'].includes(i.type) ? i.type : 'school', period: Number(i.period) || 0,
@@ -1047,8 +1053,8 @@ function ttFields(body) {
 route('POST', '/api/timetables', null, ({ user, body }) => {
   if (!canTimetable(user)) fail(403, '시간표 권한이 없습니다.');
   const f = ttFields(body); const id = uid(); const t = now();
-  run('INSERT INTO timetables(id,student,school_year,term,level,grade,class_no,periods,start_time,items,owner_id,created,updated) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)',
-    id, f.student, f.school_year, f.term, f.level, f.grade, f.class_no, f.periods, f.start_time, f.items, user.id, t, t);
+  run('INSERT INTO timetables(id,student,school_year,term,level,grade,class_no,periods,start_time,items,owner_id,created,updated,title,month,week) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+    id, f.student, f.school_year, f.term, f.level, f.grade, f.class_no, f.periods, f.start_time, f.items, user.id, t, t, f.title, f.month, f.week);
   return { id };
 });
 route('PUT', '/api/timetables/:id', null, ({ user, body, params }) => {
@@ -1056,8 +1062,8 @@ route('PUT', '/api/timetables/:id', null, ({ user, body, params }) => {
   const tt = get('SELECT * FROM timetables WHERE id=?', params.id) || fail(404, '시간표를 찾을 수 없습니다.');
   if (tt.owner_id !== user.id && !isRole(user, 'admin')) fail(403, '권한이 없습니다.');
   const f = ttFields(body);
-  run('UPDATE timetables SET student=?,school_year=?,term=?,level=?,grade=?,class_no=?,periods=?,start_time=?,items=?,updated=? WHERE id=?',
-    f.student, f.school_year, f.term, f.level, f.grade, f.class_no, f.periods, f.start_time, f.items, now(), tt.id);
+  run('UPDATE timetables SET student=?,school_year=?,term=?,level=?,grade=?,class_no=?,periods=?,start_time=?,items=?,updated=?,title=?,month=?,week=? WHERE id=?',
+    f.student, f.school_year, f.term, f.level, f.grade, f.class_no, f.periods, f.start_time, f.items, now(), f.title, f.month, f.week, tt.id);
   return { id: tt.id };
 });
 route('DELETE', '/api/timetables/:id', null, ({ user, params }) => {
