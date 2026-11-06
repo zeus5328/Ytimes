@@ -1934,7 +1934,7 @@ div.gl:hover { border-color: var(--line); }
 @media (max-width: 480px) { .cp-ticket::before, .cp-ticket::after { right: 6.25rem; } .cp-side { width: 6.25rem; } .pt-hist li { grid-template-columns: 5.25rem 1fr auto; gap: .5rem; } .cp-price { font-size: 1rem; } }
 .pt-backpay { display: flex; justify-content: space-between; align-items: center; gap: .75rem 1rem; flex-wrap: wrap; padding: 1rem 1.25rem; margin-bottom: 1.5rem; border: 1px solid var(--ink); border-radius: var(--r-lg); background: var(--surface); }
 .pt-backpay > div { display: grid; gap: .125rem; } .pt-backpay small { color: var(--muted); font-size: .8125rem; }
-/* ───────── 놀이 (로또복권 · 즉석 복권 · 사다리타기) */
+/* ───────── 놀이 (로또복권 · 즉석복권 · 사다리게임) */
 .center { text-align: center; justify-content: center; }
 .btn.big { padding: .875rem 1.75rem; font-size: 1rem; }
 .btn.wide { width: 100%; justify-content: center; }
@@ -2006,7 +2006,7 @@ div.gl:hover { border-color: var(--line); }
 .lt-prizes div { display: grid; gap: .125rem; padding: .75rem; border-radius: var(--r); background: var(--bg); border: 1px solid var(--line); text-align: center; }
 .lt-prizes b { font-size: .9375rem; } .lt-prizes small { color: var(--muted); font-size: .6875rem; } .lt-prizes span { font-weight: 800; font-size: .875rem; }
 .lt-prizes div:first-child { border-color: #D1A11A; background: color-mix(in srgb, #F2B705 12%, var(--surface)); }
-/* 즉석 복권 */
+/* 즉석복권 */
 .sc-legend { display: flex; flex-wrap: wrap; gap: .375rem; margin-top: .375rem; }
 .sc-legend span { display: inline-flex; align-items: center; gap: .375rem; padding: .3rem .625rem; border-radius: 999px; background: rgba(255,255,255,.14); border: 1px solid rgba(255,255,255,.2); font-size: .75rem; }
 .sc-legend i { font-style: normal; letter-spacing: .05em; }
@@ -2038,7 +2038,7 @@ div.gl:hover { border-color: var(--line); }
 /* 기자만 */
 .g-lock { display: grid; justify-items: center; gap: .5rem; text-align: center; padding: 2.5rem 1rem; }
 .g-lock h2 { margin: 0; font-size: 1.125rem; } .g-lock-ic { font-size: 2.5rem; }
-/* 사다리타기 */
+/* 사다리게임 */
 .ld-panel { padding-bottom: 1.5rem; }
 .ld-head { display: flex; justify-content: space-between; align-items: center; gap: .75rem; flex-wrap: wrap; margin-bottom: 1.25rem; }
 .ld-head > div:first-child { display: grid; gap: .125rem; } .ld-head b { font-size: 1.125rem; font-weight: 800; } .ld-head span { font-size: .8125rem; color: var(--muted); }

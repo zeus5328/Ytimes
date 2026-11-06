@@ -1,4 +1,4 @@
-/* 오락실 — 로또복권 · 즉석 복권 · 사다리타기 (복권은 원고료 포인트로) */
+/* 오락실 — 로또복권 · 즉석복권 · 사다리게임 (복권은 원고료 포인트로) */
 (function () {
   'use strict';
   const { esc } = YT;
@@ -20,7 +20,7 @@
   };
   const balanceChip = (n, id = '') => `<div class="g-wallet"><span>내 포인트</span><b ${id ? `id="${id}"` : ''}>${P(n)}<small>P</small></b><a href="#/points">충전하려면 기사 쓰기 →</a></div>`;
 
-  // ───────── 사다리타기 (이 기기에서만, 로그인 없이도) — ① 인원 고르기 ② 이름·결과 적기 ③ 사다리
+  // ───────── 사다리게임 (이 기기에서만, 로그인 없이도) — ① 인원 고르기 ② 이름·결과 적기 ③ 사다리
   function ladder(box) {
     let st = store.get('yt_ladder', { players: ['아빠', '엄마', '윤서', '서윤'], results: ['설거지', '청소기', '빨래 개기', '통과!'] });
     let lad = null, done = {};
@@ -111,8 +111,8 @@
   const needReporter = (box) => {
     if (YT.can('reporter')) return false;
     box.innerHTML = `<div class="g-panel g-lock"><span class="g-lock-ic" aria-hidden="true">🎟️</span><h2>${YT.state.user ? '기자만 할 수 있어요' : '기자 계정으로 로그인해 주세요'}</h2>
-      <p class="muted">로또복권과 즉석 복권은 기사를 써서 받은 원고료 포인트로 사요.</p>
-      ${YT.state.user ? '<a class="btn" href="#/games">사다리타기 하러 가기</a>' : `<a class="btn primary" href="#/login?next=${encodeURIComponent(location.hash)}">로그인</a>`}</div>`;
+      <p class="muted">로또복권과 즉석복권은 기사를 써서 받은 원고료 포인트로 사요.</p>
+      ${YT.state.user ? '<a class="btn" href="#/games">사다리게임 하러 가기</a>' : `<a class="btn primary" href="#/login?next=${encodeURIComponent(location.hash)}">로그인</a>`}</div>`;
     return true;
   };
 
@@ -183,7 +183,7 @@
     if (f) f.onsubmit = async (e) => { e.preventDefault(); try { await YT.put('/api/games/conf', Object.fromEntries(new FormData(f))); YT.toast('설정을 저장했어요.'); again(); } catch (err) { YT.err(err); } };
   };
 
-  // ───────── 즉석 복권 (긁기)
+  // ───────── 즉석복권 (긁기)
   async function scratch(box) {
     if (needReporter(box)) return;
     const d = await YT.api('/api/games/scratch');
@@ -196,7 +196,7 @@
         ${balanceChip(d.balance, 'scBal')}</section>
       <section class="g-panel sc-stage" id="scStage"></section>
       ${d.tickets.length ? `<section class="g-panel"><div class="g-ph"><h3>최근 복권</h3></div><div class="lt-slips">${d.tickets.map((t) => `<div class="lt-slip-row ${t.prize && t.symbols ? 'win' : ''}"><span class="lt-tag">${YT.shortDate(t.created).slice(5)}</span><span class="sc-mini">${t.symbols ? t.symbols.join(' ') : '긁기 전'}</span><span class="lt-state">${t.symbols ? (t.prize ? `<b>+${P(t.prize)}P</b>` : '꽝') : `<button class="linklike" data-open="${t.id}">긁으러 가기</button>`}</span></div>`).join('')}</div></section>` : ''}
-      ${YT.can('admin') ? `<details class="g-panel g-more"><summary>관리자 · 즉석 복권 설정</summary><form class="form-row" id="gConf"><label>한 장 가격<input class="input" name="scratch_price" inputmode="numeric" value="${d.conf.price}"></label><label>하루 최대 장수<input class="input" name="scratch_daily" inputmode="numeric" value="${d.conf.daily}"></label><button class="btn">저장</button></form>
+      ${YT.can('admin') ? `<details class="g-panel g-more"><summary>관리자 · 즉석복권 설정</summary><form class="form-row" id="gConf"><label>한 장 가격<input class="input" name="scratch_price" inputmode="numeric" value="${d.conf.price}"></label><label>하루 최대 장수<input class="input" name="scratch_daily" inputmode="numeric" value="${d.conf.daily}"></label><button class="btn">저장</button></form>
         <p class="muted small">당첨 확률: 💎 1/1000 (가격의 100배) · 🍀 1/100 (10배) · ⭐ 1/20 (3배) · 🍬 1/5 (본전)</p></details>` : ''}`;
     bindConf(box, () => scratch(box));
     const stage = box.querySelector('#scStage');
@@ -248,5 +248,5 @@
   };
   YT.addRoute('/games', mount('누가 설거지할까? 인원을 고르고 이름을 적으면 사다리가 만들어져요. 적은 이름은 이 기기에 기억돼요.', ladder));
   YT.addRoute('/games/lotto', mount('원고료 포인트로 사는 우리 가족 로또복권. 매주 토요일 저녁 8시에 추첨해요.', lotto));
-  YT.addRoute('/games/scratch', mount('포인트로 사서 바로 긁어 보는 즉석 복권이에요.', scratch));
+  YT.addRoute('/games/scratch', mount('포인트로 사서 바로 긁어 보는 즉석복권이에요.', scratch));
 })();

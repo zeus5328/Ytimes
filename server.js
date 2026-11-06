@@ -552,7 +552,9 @@ function createUser(b) {
   const id = uid();
   run('INSERT INTO users(id,username,display_name,pw_hash,role,timetable_access,created) VALUES(?,?,?,?,?,?,?)',
     id, username, str(b.display_name, 30) || username.split('@')[0], hashPassword(String(b.password)), role, b.timetable_access ? 1 : 0, now());
-  return get('SELECT * FROM users WHERE id=?', id);
+  const made = get('SELECT * FROM users WHERE id=?', id);
+  if (typeof giveBasePoints === 'function') giveBasePoints(made);
+  return made;
 }
 function startSession(res, userId) {
   const token = crypto.randomBytes(32).toString('hex');
@@ -1740,6 +1742,12 @@ route('POST', '/api/points/backpay', 'admin', () => {
   return { ok: true, message: n ? `지난 기사 원고료 ${n}건, 모두 ${sum.toLocaleString('ko-KR')}포인트를 줬어요.` : '줄 원고료가 없어요. (이미 모두 받았어요)' };
 });
 
+// 기본 포인트 — 가족 계정마다 2,000P를 한 번만 (김신중 계정은 빼요, 2026-11-06)
+const BASE_POINTS = 2000;
+const baseSkip = (u) => /김신중/.test(u.display_name || '') || String(u.display_name || '').trim() === '아빠' || /^zeus5328@/i.test(u.username || '');
+function giveBasePoints(u) { return !!u && !baseSkip(u) && addPoints(u.id, BASE_POINTS, '기본 포인트', 'base', 'base-2026-11'); }
+for (const u of all('SELECT id, username, display_name FROM users')) giveBasePoints(u);
+
 // ───────────────────────── 착한 일 — 아이가 한 일을 올리면 부모님(시니어기자 이상)이 확인하고 포인트를 준다
 db.exec(`CREATE TABLE IF NOT EXISTS deed_menu (id TEXT PRIMARY KEY, title TEXT NOT NULL, points INTEGER NOT NULL, icon TEXT DEFAULT '', active INTEGER DEFAULT 1, sort INTEGER DEFAULT 0, created TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS good_deeds (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, menu_id TEXT DEFAULT '', title TEXT NOT NULL, note TEXT DEFAULT '', photo TEXT DEFAULT '',
@@ -1804,7 +1812,7 @@ route('POST', '/api/deed-menu', 'admin', ({ body }) => { const [t, p, ic, ac] = 
 route('PUT', '/api/deed-menu/:id', 'admin', ({ body, params }) => { const [t, p, ic, ac] = deedBody(body); run('UPDATE deed_menu SET title=?, points=?, icon=?, active=? WHERE id=?', t, p, ic, ac, params.id); return { ok: true }; });
 route('DELETE', '/api/deed-menu/:id', 'admin', ({ params }) => { run('DELETE FROM deed_menu WHERE id=?', params.id); return { ok: true }; });
 
-// ───────────────────────── 오락실: 주간 로또 · 즉석 복권 (원고료 포인트로)
+// ───────────────────────── 오락실: 주간 로또 · 즉석복권 (원고료 포인트로)
 db.exec(`CREATE TABLE IF NOT EXISTS lotto_tickets (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, round INTEGER NOT NULL, numbers TEXT NOT NULL, auto INTEGER DEFAULT 0,
   price INTEGER NOT NULL, rank INTEGER DEFAULT 0, prize INTEGER DEFAULT 0, settled INTEGER DEFAULT 0, created TEXT NOT NULL);
 CREATE INDEX IF NOT EXISTS lotto_round ON lotto_tickets(round);
@@ -1887,9 +1895,9 @@ route('GET', '/api/games/scratch', 'reporter', ({ user }) => {
     tickets: all('SELECT * FROM scratch_tickets WHERE user_id=? ORDER BY created DESC LIMIT 20', user.id).map((t) => ({ ...t, symbols: t.scratched ? t.symbols.split(',') : null })) };
 });
 route('POST', '/api/games/scratch', 'reporter', ({ user }) => {
-  const c = scratchConf(); if (!c.price) fail(400, '지금은 즉석 복권을 팔지 않아요.');
+  const c = scratchConf(); if (!c.price) fail(400, '지금은 즉석복권을 팔지 않아요.');
   const n = get('SELECT COUNT(*) c FROM scratch_tickets WHERE user_id=? AND created>=?', user.id, kstDayStart()).c;
-  if (c.daily && n >= c.daily) fail(400, `즉석 복권은 하루 ${c.daily}장까지예요. 내일 또 해요!`);
+  if (c.daily && n >= c.daily) fail(400, `즉석복권은 하루 ${c.daily}장까지예요. 내일 또 해요!`);
   if (balance(user.id) < c.price) fail(400, `포인트가 모자라요. (${c.price.toLocaleString('ko-KR')}포인트 필요)`);
   // 당첨 확률: 💎 1/1000 · 🍀 1/100 · ⭐ 1/20 · 🍬(본전) 1/5
   const roll = rnd(1000); const tier = roll < 1 ? 0 : roll < 11 ? 1 : roll < 61 ? 2 : roll < 261 ? 3 : -1;
@@ -1898,13 +1906,13 @@ route('POST', '/api/games/scratch', 'reporter', ({ user }) => {
   else { do symbols = [0, 1, 2].map(() => SCRATCH[rnd(4)][0]); while (symbols[0] === symbols[1] && symbols[1] === symbols[2]); }
   const prize = tier >= 0 ? SCRATCH[tier][1] * c.price : 0; const id = uid();
   run('INSERT INTO scratch_tickets(id,user_id,price,prize,symbols,created) VALUES(?,?,?,?,?,?)', id, user.id, c.price, prize, symbols.join(','), now());
-  addPoints(user.id, -c.price, '즉석 복권 구입', 'scratch_buy', id);
+  addPoints(user.id, -c.price, '즉석복권 구입', 'scratch_buy', id);
   return { ok: true, id, balance: balance(user.id) };
 });
 // 긁기 끝 — 결과를 보여 주고 당첨금을 준다
 route('POST', '/api/games/scratch/:id', 'reporter', ({ user, params }) => {
   const t = get('SELECT * FROM scratch_tickets WHERE id=? AND user_id=?', params.id, user.id) || fail(404, '복권을 찾을 수 없어요.');
-  if (run('UPDATE scratch_tickets SET scratched=1 WHERE id=? AND scratched=0', t.id).changes && t.prize) addPoints(user.id, t.prize, '즉석 복권 당첨', 'scratch_win', t.id);
+  if (run('UPDATE scratch_tickets SET scratched=1 WHERE id=? AND scratched=0', t.id).changes && t.prize) addPoints(user.id, t.prize, '즉석복권 당첨', 'scratch_win', t.id);
   return { symbols: t.symbols.split(','), prize: t.prize, balance: balance(user.id) };
 });
 route('PUT', '/api/games/conf', 'admin', ({ body }) => {
