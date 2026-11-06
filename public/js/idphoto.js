@@ -1,4 +1,4 @@
-/* 사진관 › 증명·여권사진 — 사진을 규격에 맞게 자르고, 한 장(제출용)이나 4×6 인화지(여러 장)로 내려받기
+/* 사진관 › 증명·여권사진 — 사진을 규격에 맞게 자르고, 한 장(제출용)이나 A4 용지(여러 장)로 내려받기
    · 모든 작업은 이 기기(브라우저) 안에서만 해요. 사진이 서버로 올라가지 않아요.
    · 여권사진은 배경 지우기·합성·보정이 금지라 그런 기능은 일부러 넣지 않았어요. */
 (function () {
@@ -11,7 +11,7 @@
     id: { name: '증명사진 (반명함)', w: 30, h: 40, top: 4, head: 27, note: '가로 3 × 세로 4cm · 이력서·학생증·자격증 등에 많이 써요' },
     card: { name: '명함판', w: 50, h: 70, top: 7, head: 40, note: '가로 5 × 세로 7cm' },
   };
-  const SHEET = { w: 152, h: 102, gap: 2, margin: 1.5 }; // 4×6인치(10×15cm) 인화지, 가로로 눕혀서
+  const SHEET = { w: 210, h: 297, gap: 3, margin: 8, foot: 8 }; // A4 세로 · 집 프린터가 못 찍는 가장자리 8mm 비우고, 아래 8mm는 안내 글
 
   YT.addRoute('/studio/id-photo', async (view) => {
     view.className = 'container';
@@ -20,7 +20,7 @@
       return;
     }
     let kind = 'passport'; let img = null; let st = { s: 1, ox: 0, oy: 0, rot: 0 }; let guide = true;
-    view.innerHTML = YT.subTabs('studio') + YT.pageHead('', '증명·여권사진', '사진을 고르고 얼굴을 점선에 맞추면, 제출용 한 장이나 인화지 한 장에 여러 장으로 만들어 줘요. 사진은 이 기기 안에서만 다루고 서버에 올리지 않아요.')
+    view.innerHTML = YT.subTabs('studio') + YT.pageHead('', '증명·여권사진', '사진을 고르고 얼굴을 점선에 맞추면, 제출용 한 장이나 A4 용지 한 장에 여러 장으로 만들어 줘요. 사진은 이 기기 안에서만 다루고 서버에 올리지 않아요.')
       + `<div class="idp">
         <div class="idp-kinds" role="group" aria-label="사진 종류">${Object.entries(KINDS).map(([k, v]) => `<button type="button" class="chip ${k === kind ? 'on' : ''}" data-kind="${k}" aria-pressed="${k === kind}">${v.name} <small>${v.w / 10}×${v.h / 10}cm</small></button>`).join('')}</div>
         <p class="muted small" id="idpNote"></p>
@@ -42,9 +42,9 @@
             <div class="idp-acts">
               <button class="btn primary" id="idpOne" disabled>📄 한 장 저장 (JPG)</button>
               <p class="muted small">온라인 신청·제출용 파일이에요 (실제 크기, 300dpi).</p>
-              <button class="btn" id="idpSheet" disabled>🖨️ 4×6 인화지용 저장</button>
-              <p class="muted small" id="idpSheetInfo">사진관·편의점 인화기나 집 프린터에서 <b>4×6(10×15cm) 실제 크기</b>로 뽑은 뒤 선을 따라 잘라요.</p>
-              <button class="btn ghost" id="idpPrint" disabled>바로 인쇄</button>
+              <button class="btn" id="idpSheet" disabled>🖨️ A4 용지로 저장</button>
+              <p class="muted small" id="idpSheetInfo">집 프린터에서 <b>A4 · 실제 크기(100%)</b>로 뽑은 뒤 회색 선을 따라 잘라요.</p>
+              <button class="btn ghost" id="idpPrint" disabled>A4로 바로 인쇄</button>
             </div>
             <div class="idp-sheet" id="idpSheetPrev"></div>
             <details class="help" id="idpRules"><summary>여권사진 확인할 점 (외교부 기준)</summary><ul class="set-list">
@@ -53,7 +53,7 @@
               <li>색 렌즈·색안경 안 돼요. 안경은 빛 반사나 테가 눈을 가리면 안 돼요</li>
               <li>모자·머리띠 안 돼요. 그림자·빛 번짐 없이 고르게</li>
               <li>36개월 미만 아기도 같은 기준 (장난감·보호자가 보이면 안 돼요)</li>
-              <li>인화는 꼭 <b>사진 인화지</b>에 · 최신 기준은 외교부 여권안내 누리집에서 확인하세요</li></ul></details>
+              <li>A4로 뽑을 때는 <b>A4 사진 인화지(광택지)</b>에 · 일반 복사용지는 여권사진으로 안 받아줘요 · 최신 기준은 외교부 여권안내 누리집에서 확인하세요</li></ul></details>
           </section>
         </div></div>`;
     const cv = YT.$('#idpCv'), ctx = cv.getContext('2d'), gsvg = YT.$('#idpGuide'), frame = YT.$('#idpFrame');
@@ -76,13 +76,13 @@
       YT.$('#idpRules').hidden = kind !== 'passport';
       ['#idpOne', '#idpSheet', '#idpPrint'].forEach((s) => (YT.$(s).disabled = !img));
       YT.$('#idpCtl').hidden = !img; YT.$('#idpEmpty').hidden = !!img;
-      clearTimeout(sheetTimer); sheetTimer = setTimeout(drawSheetPrev, 350); // 인화지 미리보기는 손을 멈춘 뒤에
+      clearTimeout(sheetTimer); sheetTimer = setTimeout(drawSheetPrev, 350); // A4 미리보기는 손을 멈춘 뒤에
     };
     let sheetTimer = null;
-    // 4×6 인화지에 몇 장 들어가는지
+    // A4 한 장에 몇 장 들어가는지
     const sheetLayout = () => {
-      const k = K(); const S = SHEET; const fit = (W, H) => ({ cols: Math.floor((W - 2 * S.margin + S.gap) / (k.w + S.gap)), rows: Math.floor((H - 2 * S.margin - 6 + S.gap) / (k.h + S.gap)) });
-      const a = fit(S.w, S.h), b = fit(S.h, S.w); // 가로 눕힘 / 세로 세움 중 더 많이 들어가는 쪽
+      const k = K(); const S = SHEET; const fit = (W, H) => ({ cols: Math.floor((W - 2 * S.margin + S.gap) / (k.w + S.gap)), rows: Math.floor((H - 2 * S.margin - S.foot + S.gap) / (k.h + S.gap)) });
+      const a = fit(S.w, S.h), b = fit(S.h, S.w); // A4 세로 / 가로 중 더 많이 들어가는 쪽 (같으면 세로)
       return a.cols * a.rows >= b.cols * b.rows ? { W: S.w, H: S.h, ...a } : { W: S.h, H: S.w, ...b };
     };
     const makeSheet = () => {
@@ -90,20 +90,20 @@
       const c = document.createElement('canvas'); c.width = mm(L.W); c.height = mm(L.H); const x = c.getContext('2d');
       x.fillStyle = '#fff'; x.fillRect(0, 0, c.width, c.height);
       const totalW = L.cols * k.w + (L.cols - 1) * S.gap, totalH = L.rows * k.h + (L.rows - 1) * S.gap;
-      const x0 = (L.W - totalW) / 2, y0 = (L.H - 6 - totalH) / 2;
+      const x0 = (L.W - totalW) / 2, y0 = (L.H - S.foot - totalH) / 2;
       x.strokeStyle = '#c8c8c8'; x.lineWidth = 1;
       for (let r = 0; r < L.rows; r++) for (let col = 0; col < L.cols; col++) {
         const px = mm(x0 + col * (k.w + S.gap)), py = mm(y0 + r * (k.h + S.gap));
         x.drawImage(cv, px, py, mm(k.w), mm(k.h)); x.strokeRect(px - 0.5, py - 0.5, mm(k.w) + 1, mm(k.h) + 1);
       }
       x.fillStyle = '#888'; x.font = `${mm(2.6)}px sans-serif`; x.textAlign = 'center';
-      x.fillText(`${k.name} ${k.w / 10}×${k.h / 10}cm · ${L.cols * L.rows}장 · 4×6(10×15cm) 실제 크기로 인화`, c.width / 2, c.height - mm(2.2));
+      x.fillText(`${k.name} ${k.w / 10}×${k.h / 10}cm · ${L.cols * L.rows}장 · A4 · 실제 크기(100%)로 인쇄 · 회색 선을 따라 자르세요`, c.width / 2, c.height - mm(S.margin + 1));
       return { canvas: c, n: L.cols * L.rows };
     };
     const drawSheetPrev = () => {
       const box = YT.$('#idpSheetPrev'); if (!img) { box.innerHTML = ''; return; }
       const { canvas, n } = makeSheet(); box.innerHTML = ''; canvas.className = 'idp-sheet-cv'; box.appendChild(canvas);
-      YT.$('#idpSheetInfo').innerHTML = `한 장에 <b>${n}장</b>이 들어가요. 사진관·편의점 인화기나 집 프린터에서 <b>4×6(10×15cm) 실제 크기</b>로 뽑은 뒤 선을 따라 잘라요.`;
+      YT.$('#idpSheetInfo').innerHTML = `A4 한 장에 <b>${n}장</b>이 들어가요. 집 프린터에서 <b>A4 · 실제 크기(100%)</b>로 뽑은 뒤 회색 선을 따라 잘라요. (‘용지에 맞춤’으로 뽑으면 크기가 달라져요)`;
     };
     const redraw = () => { draw(); };
     // 사진 고르기
@@ -141,15 +141,19 @@
     };
     // 내려받기
     const stamp = () => YT.today().replace(/-/g, '');
-    const toBlob = (c) => new Promise((res) => c.toBlob(res, 'image/jpeg', 0.95));
+    // JPG 안에 ‘300dpi’ 정보를 적어 둬야 ‘실제 크기’ 인쇄 때 크기가 맞아요
+    const toBlob = (c) => new Promise((res) => c.toBlob(async (b) => {
+      try { const u = new Uint8Array(await b.arrayBuffer()); if (u[6] === 0x4a && u[7] === 0x46 && u[8] === 0x49 && u[9] === 0x46) { u[13] = 1; u[14] = 1; u[15] = 44; u[16] = 1; u[17] = 44; return res(new Blob([u], { type: 'image/jpeg' })); } } catch {}
+      res(b);
+    }, 'image/jpeg', 0.95));
     YT.$('#idpOne').onclick = async () => { const g = guide; guide = false; draw(); const blob = await toBlob(cv); guide = g; draw(); await YT.saveFile(`${K().name.replace(/\s.*$/, '')}_${K().w}x${K().h}mm_${stamp()}.jpg`, blob, 'image/jpeg'); };
-    YT.$('#idpSheet').onclick = async () => { const { canvas } = makeSheet(); await YT.saveFile(`${K().name.replace(/\s.*$/, '')}_4x6인화_${stamp()}.jpg`, await toBlob(canvas), 'image/jpeg'); };
+    YT.$('#idpSheet').onclick = async () => { const { canvas } = makeSheet(); await YT.saveFile(`${K().name.replace(/\s.*$/, '')}_A4_${stamp()}.jpg`, await toBlob(canvas), 'image/jpeg'); };
     YT.$('#idpPrint').onclick = () => {
       const { canvas } = makeSheet(); const L = sheetLayout(); const src = canvas.toDataURL('image/jpeg', 0.95);
       const fr = document.createElement('iframe'); fr.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0'; document.body.appendChild(fr);
       fr.srcdoc = `<!doctype html><html><head><style>@page{size:${L.W}mm ${L.H}mm;margin:0}html,body{margin:0}img{width:${L.W}mm;height:${L.H}mm;display:block}</style></head><body><img src="${src}"></body></html>`;
-      fr.onload = () => { try { fr.contentWindow.focus(); fr.contentWindow.print(); } catch { YT.toast('이 화면에서는 바로 인쇄할 수 없어요. ‘4×6 인화지용 저장’ 뒤 인쇄해 주세요.', 'error'); } setTimeout(() => fr.remove(), 60000); };
-      YT.toast('인쇄 창에서 용지를 4×6(10×15cm), 배율을 ‘실제 크기(100%)’로 골라 주세요.');
+      fr.onload = () => { try { fr.contentWindow.focus(); fr.contentWindow.print(); } catch { YT.toast('이 화면에서는 바로 인쇄할 수 없어요. ‘A4 용지로 저장’ 뒤 인쇄해 주세요.', 'error'); } setTimeout(() => fr.remove(), 60000); };
+      YT.toast('인쇄 창에서 용지는 A4, 배율은 ‘실제 크기(100%)’, 여백은 ‘없음’으로 골라 주세요.');
     };
     draw();
   });
