@@ -277,9 +277,14 @@ function notify(to, n) {
 }
 const usersWith = (minRole, except) => all('SELECT id, role FROM users').filter((u) => ROLE_RANK[u.role] >= ROLE_RANK[minRole] && u.id !== except).map((u) => u.id);
 // 오늘·내일 생일과 기념일 — 알림함을 열 때 그 사람 몫을 만든다
+const pointsChecked = new Map(); // user.id → 마지막으로 확인한 날 (한국 시간)
 function birthdayNotices(user) {
-  try { birthdayPoints(user); } catch (e) { console.error('생일 포인트:', e.message); }
-  try { monthlyPoints(user); } catch (e) { console.error('매달 포인트:', e.message); }
+  // 생일·매달 포인트는 사람마다 하루 한 번만 확인 (알림을 열 때마다 계산하지 않게)
+  if (user && pointsChecked.get(user.id) !== kstToday()) {
+    try { birthdayPoints(user); } catch (e) { console.error('생일 포인트:', e.message); }
+    try { monthlyPoints(user); } catch (e) { console.error('매달 포인트:', e.message); }
+    pointsChecked.set(user.id, kstToday());
+  }
   deadlineNotices(user);
   capsuleNotices(user);
   if (!isRole(user, 'subscriber')) return;
@@ -1855,6 +1860,7 @@ route('PUT', '/api/points/monthly', 'admin', ({ body }) => {
   const amt = Math.max(0, Math.min(1e7, parseInt(body.amount, 10) || 0));
   const c = monthlyConf(); if (amt) c[u.id] = amt; else delete c[u.id];
   setSetting('monthly_points', JSON.stringify(c)); setSetting('monthly_seeded', '1');
+  pointsChecked.delete(u.id); // 바로 다시 확인하게
   return { ok: true, monthly: c };
 });
 
