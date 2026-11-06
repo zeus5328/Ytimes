@@ -109,9 +109,26 @@
           <label class="btn small" for="mascotFile">로고 올리기</label><input type="file" accept="image/*" id="mascotFile" hidden>${S.mascot ? '<button type="button" class="btn small" data-round="mascot">원형으로 투명하게</button><button type="button" class="btn small" data-knock="mascot">검은 배경 투명하게</button><button type="button" class="btn small danger ghost" id="mascotRm">로고 빼기</button>' : ''}</div></div>
         <div class="set-actions"><button class="btn primary">신문 정보 저장</button></div></form>`, { desc: '1면 제호, 머리·바닥 문구, 이달의 지면에 함께 쓰여요.' })
       + panel('누가 볼 수 있나요', row('가족만 보기', S.members_only === '1' ? '켜짐 — 가족 계정으로 로그인해야 신문을 볼 수 있어요. 계정 없는 친척은 지면의 ‘친척에게 링크 보내기’로 보내 주세요.' : '꺼짐 — 사이트 주소를 아는 사람은 누구나 발행된 기사를 읽을 수 있어요.', toggle('members_only', S.members_only === '1', '가족만 보기')))
+      + panel('장소 검색 (카카오)', `<div id="kakaoBox"><p class="muted small">불러오는 중…</p></div>`, { desc: '기사 쓰기의 ‘장소 고르기’에서 가게·식당 이름까지 잘 찾게 해 줘요. 키가 없으면 오픈스트리트맵으로 찾아요.' })
       + panel('미리보기', `<div class="set-mast"><small>${esc(S.kicker)}</small><b>${esc(S.site_name)}</b><span>${esc(S.tagline)} · 창간 ${esc(S.founded)}</span></div>`);
   }
   function paperBind(view) {
+    // 카카오 장소 검색 키 — 키는 서버에만 저장되고 화면·백업에는 나오지 않아요
+    const kb = YT.$('#kakaoBox');
+    const kdraw = async () => {
+      if (!kb) return; let st = { kakao: false };
+      try { st = await YT.api('/api/places/status'); } catch {}
+      kb.innerHTML = `<p class="set-desc">${st.kakao ? '<b class="ok-text">✓ 연결됨</b> — 장소 고르기에서 카카오맵으로 찾아요.' : '아직 연결하지 않았어요.'}</p>
+        ${st.from_env ? '<p class="muted small">서버 환경 변수(KAKAO_REST_KEY)로 연결돼 있어요.</p>' : `<form class="set-inline" id="kakaoForm"><label class="grow"><span class="vh">카카오 REST API 키</span><input class="input" name="key" type="password" autocomplete="off" spellcheck="false" placeholder="${st.kakao ? '새 키로 바꾸려면 붙여 넣기' : 'REST API 키 붙여 넣기'}"></label><button class="btn primary">연결</button>${st.kakao ? '<button type="button" class="btn ghost" id="kakaoOff">연결 끊기</button>' : ''}</form>`}
+        <details class="help mt"><summary>키 받는 방법 (무료)</summary><ol class="set-list">
+          <li><a href="https://developers.kakao.com" target="_blank" rel="noopener">developers.kakao.com</a>에 카카오 계정으로 로그인 → <b>내 애플리케이션 › 애플리케이션 추가하기</b> (이름 예: 유니 타임즈)</li>
+          <li>만든 앱에서 <b>카카오맵 › 사용 설정</b>을 <b>켜기(ON)</b></li>
+          <li><b>앱 키</b>(또는 앱 설정 › 플랫폼 키)에서 <b>REST API 키</b>를 복사해 위 칸에 붙여 넣고 <b>연결</b></li>
+          <li>처음 카카오맵을 켠 앱 하나에는 무료 사용량이 있어요. 가족 신문에는 넉넉해요.</li></ol></details>`;
+      const f = YT.$('#kakaoForm'); if (f) f.onsubmit = async (e) => { e.preventDefault(); const b = f.querySelector('.btn.primary'); b.disabled = true; b.textContent = '확인하는 중…'; try { await YT.put('/api/places/key', { key: f.key.value }); YT.toast('카카오 장소 검색을 연결했어요.'); kdraw(); } catch (err) { YT.err(err); b.disabled = false; b.textContent = '연결'; } };
+      const off = YT.$('#kakaoOff'); if (off) off.onclick = async () => { if (!YT.confirm('카카오 장소 검색 연결을 끊을까요?')) return; await YT.put('/api/places/key', { key: '' }); YT.toast('연결을 끊었어요.'); kdraw(); };
+    };
+    kdraw();
     let logo = YT.state.settings.logo;
     YT.$('#logoFile').onchange = async (e) => { try { logo = await YT.uploadImage(e.target.files[0], 'logo'); YT.toast('로고를 올렸어요. 저장을 눌러주세요.'); } catch (err) { YT.err(err); } };
     const rm = YT.$('#logoRm'); if (rm) rm.onclick = () => { logo = ''; YT.toast('저장을 누르면 로고가 빠져요.'); };

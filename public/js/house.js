@@ -128,11 +128,23 @@
     } catch (err) { m.el.querySelector('#plMap').innerHTML = `<p class="muted small">${esc(err.message)} 이름만 넣어도 돼요.</p>`; }
     m.el.querySelector('#plSearch').onsubmit = async (e) => {
       e.preventDefault(); const q = e.target.q.value.trim(); if (!q) return; const ul = m.el.querySelector('#plResults'); ul.innerHTML = '<li class="muted">찾는 중…</li>';
+      // 카카오(연결돼 있으면) → 안 되면 오픈스트리트맵
+      let list = null, note = '';
       try {
-        const r = await fetch('https://nominatim.openstreetmap.org/search?format=json&limit=5&accept-language=ko&countrycodes=&q=' + encodeURIComponent(q)).then((x) => x.json());
-        ul.innerHTML = r.length ? r.map((x, i) => `<li><button type="button" data-i="${i}">${esc(x.display_name.split(',').slice(0, 3).join(','))}</button></li>`).join('') : '<li class="muted">찾지 못했어요. 지도를 직접 눌러 보세요.</li>';
-        ul.onclick = (ev) => { const b = ev.target.closest('[data-i]'); if (!b) return; const x = r[+b.dataset.i]; setPin(+x.lat, +x.lon, q); ul.innerHTML = ''; };
-      } catch { ul.innerHTML = '<li class="muted">검색을 할 수 없어요. 지도를 직접 눌러 핀을 꽂아 주세요.</li>'; }
+        const c = map ? map.getCenter() : null;
+        const k = await YT.api('/api/places/search?q=' + encodeURIComponent(q) + (c ? `&lat=${c.lat.toFixed(5)}&lng=${c.lng.toFixed(5)}` : ''));
+        if (k.provider === 'kakao') { if (k.error) note = `카카오 검색: ${k.error}`; else list = k.places.map((p) => ({ lat: p.lat, lng: p.lng, name: p.name, sub: [p.category, p.address].filter(Boolean).join(' · ') })); }
+      } catch {}
+      if (!list || !list.length) {
+        try {
+          const r = await fetch('https://nominatim.openstreetmap.org/search?format=json&limit=5&accept-language=ko&countrycodes=&q=' + encodeURIComponent(q)).then((x) => x.json());
+          if (r.length) list = r.map((x) => ({ lat: +x.lat, lng: +x.lon, name: q, sub: x.display_name.split(',').slice(0, 3).join(',') }));
+        } catch { if (!list) list = null; }
+      }
+      if (list && list.length) {
+        ul.innerHTML = list.map((x, i) => `<li><button type="button" data-i="${i}"><b>${esc(x.name)}</b>${x.sub ? `<small>${esc(x.sub)}</small>` : ''}</button></li>`).join('') + (note ? `<li class="muted small">${esc(note)}</li>` : '');
+        ul.onclick = (ev) => { const b = ev.target.closest('[data-i]'); if (!b) return; const x = list[+b.dataset.i]; m.el.querySelector('#plName').value = ''; setPin(x.lat, x.lng, x.name); if (map) map.setView([x.lat, x.lng], 16); ul.innerHTML = ''; };
+      } else ul.innerHTML = `<li class="muted">${note ? esc(note) + ' · ' : ''}찾지 못했어요. 지도를 직접 눌러 핀을 꽂아 주세요.</li>`;
     };
     m.el.querySelector('#plOk').onclick = () => {
       const name = m.el.querySelector('#plName').value.trim();

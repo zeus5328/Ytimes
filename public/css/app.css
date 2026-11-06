@@ -2187,3 +2187,4 @@ svg.vc { width: 100%; height: auto; display: block; }
 .pl-sug-row { display: flex; align-items: center; gap: .375rem; } .pl-sug-row span { flex: 1; min-width: 0; }
 .pl-recent { display: flex; flex-wrap: wrap; gap: .375rem; align-items: center; margin: .5rem 0; }
 .pl-search { display: flex; gap: .375rem; flex-wrap: wrap; } .pl-search .input { flex: 1 1 12rem; }
+.ok-text { color: #2E7D5B; } .pl-results small { display: block; color: var(--muted); font-size: .75rem; font-weight: 400; }

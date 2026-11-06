@@ -1859,6 +1859,37 @@ if (getSetting('categories_v2', '') !== '1') {
   setSetting('categories_v2', '1');
 }
 
+// 장소 검색 (카카오 로컬) — 키는 secrets 표에만 (백업·화면에 나가지 않음). 키가 없으면 화면이 오픈스트리트맵으로 찾는다
+db.exec('CREATE TABLE IF NOT EXISTS secrets (key TEXT PRIMARY KEY, value TEXT NOT NULL)');
+const kakaoKey = () => process.env.KAKAO_REST_KEY || (get('SELECT value FROM secrets WHERE key=?', 'kakao_rest_key') || {}).value || '';
+route('GET', '/api/places/status', 'reporter', () => ({ kakao: !!kakaoKey(), from_env: !!process.env.KAKAO_REST_KEY }));
+route('PUT', '/api/places/key', 'admin', async ({ body }) => {
+  const k = String(body.key || '').trim();
+  if (!k) { run("DELETE FROM secrets WHERE key='kakao_rest_key'"); return { ok: true, kakao: !!kakaoKey() }; }
+  if (!/^[A-Za-z0-9]{20,64}$/.test(k)) fail(400, 'REST API 키 모양이 아니에요. 카카오 개발자 사이트의 [앱 키] › REST API 키를 그대로 붙여 넣어 주세요.');
+  const t = await kakaoSearch('서울역', null, k).catch((e) => ({ error: e.message })); // 저장 전에 한 번 써 보기
+  if (t.error) fail(400, '카카오에서 키를 받아 주지 않았어요: ' + t.error);
+  run('INSERT INTO secrets(key,value) VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value', 'kakao_rest_key', k);
+  return { ok: true, kakao: true };
+});
+async function kakaoSearch(q, near, key = kakaoKey()) {
+  const u = new URL('https://dapi.kakao.com/v2/local/search/keyword.json'); u.searchParams.set('query', q); u.searchParams.set('size', '10');
+  if (near && isFinite(near.lat) && isFinite(near.lng)) { u.searchParams.set('y', String(near.lat)); u.searchParams.set('x', String(near.lng)); }
+  const ctl = new AbortController(); const timer = setTimeout(() => ctl.abort(), 6000);
+  try {
+    const r = await fetch(u, { headers: { Authorization: 'KakaoAK ' + key }, signal: ctl.signal });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(r.status === 401 ? '키가 맞지 않아요' : r.status === 403 ? '앱에서 카카오맵 사용 설정을 켜 주세요' : r.status === 429 ? '오늘 쓸 수 있는 검색 횟수를 다 썼어요' : (j.message || '오류 ' + r.status));
+    return { places: (j.documents || []).map((d) => ({ name: d.place_name, address: d.road_address_name || d.address_name || '', category: (d.category_name || '').split('>').pop().trim(), lat: Number(d.y), lng: Number(d.x) })).filter((p) => isFinite(p.lat) && isFinite(p.lng)) };
+  } finally { clearTimeout(timer); }
+}
+route('GET', '/api/places/search', 'reporter', async ({ query }) => {
+  const q = str(query.q, 60); if (!q) fail(400, '찾을 장소 이름을 적어 주세요.');
+  if (!kakaoKey()) return { provider: 'none', places: [] };
+  try { return { provider: 'kakao', ...(await kakaoSearch(q, query.lat ? { lat: Number(query.lat), lng: Number(query.lng) } : null)) }; }
+  catch (e) { return { provider: 'kakao', places: [], error: e.name === 'AbortError' ? '카카오 검색이 너무 늦어요' : e.message }; }
+});
+
 // ───────────────────────── 착한 일 — 아이가 한 일을 올리면 부모님(시니어기자 이상)이 확인하고 포인트를 준다
 db.exec(`CREATE TABLE IF NOT EXISTS deed_menu (id TEXT PRIMARY KEY, title TEXT NOT NULL, points INTEGER NOT NULL, icon TEXT DEFAULT '', active INTEGER DEFAULT 1, sort INTEGER DEFAULT 0, created TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS good_deeds (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, menu_id TEXT DEFAULT '', title TEXT NOT NULL, note TEXT DEFAULT '', photo TEXT DEFAULT '',
