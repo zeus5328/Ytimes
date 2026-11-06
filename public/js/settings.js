@@ -205,20 +205,20 @@
         ${kpi('댓글 · 한마디', s.comments + ' · ' + s.notes, '')}${kpi('사진 · 앨범', s.photos + ' · ' + s.albums, '', '#/studio')}${kpi('인물 · 시간표', s.people + ' · ' + s.timetables, '')}${kpi('자료 크기', kb(s.db_kb + s.upload_kb), '')}</div>`
       + (s.cloud ? `<div class="set-note">클라우드(Vercel + Neon)에서 운영 중이에요. 글·일정 자료는 <b>Neon 데이터베이스</b>가, 사진·소리는 <b>Vercel Blob</b>이 보관해요.${lb ? ` · 내 컴퓨터로 받은 백업: ${esc(lb)}` : ''}</div>`
         + panel('자동 백업 (클라우드)', `<p class="set-desc">Neon은 데이터베이스를 지난 시점으로 되돌리는 기능을 스스로 갖고 있어요 (무료 요금제는 되돌릴 수 있는 기간이 짧아요). Neon 관리 화면 › <b>Restore</b>에서 시점을 고르면 돼요. 그래도 한 달에 한 번은 아래 <b>전체 백업</b>을 내 컴퓨터에 받아 두는 게 가장 안전해요.</p>`)
-        + panel('백업 (내 컴퓨터로)', `<p class="set-desc">기사·일정·카드·댓글·투표·앨범 구성 등 모든 글 자료를 JSON 파일 하나로 내려받아요. 비밀번호와 사진 파일은 들어가지 않아요. (자료 크기: 데이터베이스 ${kb(s.db_kb).replace(/<\/?small>/g, '')} · 사진·소리 ${s.upload_files}개)</p>
+        + panel('백업 (내 컴퓨터로)', `<p class="set-desc">기사·일정·카드·댓글·투표·한마디·인물(가계도·페이스타임 연락처)·할 일·수업 시간표·방학계획표·앨범 구성·포인트·쿠폰·착한 일·오락실 기록과 <b>가족 계정 목록</b>까지 모든 글 자료를 JSON 파일 하나로 내려받아요. <b>비밀번호, 카카오 장소 검색 키, 가족 영상통화방 링크</b>는 들어가지 않아요. 사진 파일은 아래 ‘전체 백업’에 들어가요. 백업 파일에는 가족 연락처도 있으니 잘 보관해 주세요. (자료 크기: 데이터베이스 ${kb(s.db_kb).replace(/<\/?small>/g, '')} · 사진·소리 ${s.upload_files}개)</p>
           <div class="set-actions"><button class="btn primary" id="backupBtn">백업 파일 내려받기</button></div>`)
         : `<div class="set-note ${lastAuto && YT.dayDiff(lastAuto.date, YT.today()) <= 1 ? '' : 'warn'}">${lastAuto ? `서버 자동 백업: <b>${esc(lastAuto.date)}</b> (${YT.dayDiff(lastAuto.date, YT.today()) === 0 ? '오늘' : YT.dayDiff(lastAuto.date, YT.today()) + '일 전'}) · 최근 ${bk.backups.length}일치 보관 중` : '서버 자동 백업이 아직 없어요. 아래 ‘지금 백업’을 한 번 눌러 보세요.'}${lb ? ` · 내 컴퓨터로 받은 백업: ${esc(lb)}` : ''}</div>`
       + panel('자동 백업 (서버에)', `<p class="set-desc">서버가 켜져 있으면 <b>매일 새벽 3시 무렵</b> 글·일정 자료를 <code>${esc(bk.dir || 'data/backups')}</code> 폴더에 하루 한 개씩 복사해요. 최근 <b>${bk.keep}일치</b>만 남기고 오래된 것은 지워요. 사진은 새로 올라온 것만 함께 복사하고, 기사에서 사진을 지워도 백업에는 남아요.</p>
           ${bk.backups.length ? `<ul class="bk-list">${bk.backups.slice(0, 7).map((b) => `<li><span>${esc(b.date)}</span><small>${b.kb >= 1024 ? (b.kb / 1024).toFixed(1) + 'MB' : b.kb + 'KB'}</small></li>`).join('')}${bk.backups.length > 7 ? `<li class="muted">외 ${bk.backups.length - 7}개</li>` : ''}</ul>` : ''}
           <details class="set-more"><summary>자동 백업으로 되돌리는 방법</summary><ol class="set-list"><li>서버를 끕니다 (터미널에서 Ctrl+C, NAS는 컨테이너 중지).</li><li><code>data/ytimes.db</code>를 다른 이름으로 옮겨 두고, <code>data/backups/ytimes-날짜.db</code>를 <code>data/ytimes.db</code>로 복사합니다.</li><li>사진이 사라졌다면 <code>data/backups/uploads</code>의 파일을 <code>data/uploads</code>로 복사합니다.</li><li>서버를 다시 켭니다.</li></ol></details>
           <div class="set-actions"><button class="btn" id="autoBackupBtn">지금 백업</button></div>`)
-      + panel('백업 (내 컴퓨터로)', `<p class="set-desc">기사·일정·카드·댓글·투표·앨범 구성 등 모든 글 자료를 JSON 파일 하나로 내려받아요. 비밀번호는 들어가지 않아요.</p>
+      + panel('백업 (내 컴퓨터로)', `<p class="set-desc">기사·일정·카드·댓글·투표·한마디·인물(가계도·페이스타임 연락처)·할 일·수업 시간표·방학계획표·앨범 구성·포인트·쿠폰·착한 일·오락실 기록과 <b>가족 계정 목록</b>까지 모든 글 자료를 JSON 파일 하나로 내려받아요. <b>비밀번호, 카카오 장소 검색 키, 가족 영상통화방 링크</b>는 들어가지 않아요. 백업 파일에는 가족 연락처도 있으니 잘 보관해 주세요.</p>
           <ul class="set-list"><li>사진 원본 ${s.upload_files}개(${kb(s.upload_kb).replace(/<\/?small>/g, '')})는 서버의 <code>data/uploads</code> 폴더에 있어요. 폴더째 함께 복사해두세요.</li>
           <li>데이터베이스 파일은 <code>data/ytimes.db</code>(${kb(s.db_kb).replace(/<\/?small>/g, '')})예요. 서버를 끈 상태에서 <code>data</code> 폴더를 통째로 복사하면 가장 확실한 백업이에요.</li></ul>
           <div class="set-actions"><button class="btn primary" id="backupBtn">백업 파일 내려받기</button></div>`))
-      + panel('서버로 옮기기용 전체 백업', `<p class="set-desc">기사·일정·할 일·주소록 같은 글 자료에 <b>사진과 목소리 파일까지 모두</b> 담은 백업 파일 하나를 만들어요. 다른 서버(NAS)로 옮길 때, 새 서버의 <b>설정 › 자료 관리 › 백업 되돌리기</b>에 이 파일을 올리면 그대로 옮겨져요. 가족 계정(이메일·비밀번호)은 옮겨지지 않으니 새 서버에서 다시 만들어 주세요.</p>
+      + panel('서버로 옮기기용 전체 백업', `<p class="set-desc">기사·일정·할 일·주소록 같은 글 자료에 <b>사진과 목소리 파일까지 모두</b> 담은 백업 파일 하나를 만들어요. 다른 서버(NAS)로 옮길 때, 새 서버의 <b>설정 › 자료 관리 › 백업 되돌리기</b>에 이 파일을 올리면 그대로 옮겨져요. <b>가족 계정</b>은 새 서버에 같은 이메일 계정이 있으면 그 계정에 포인트·기사·착한 일이 이어지고, 없으면 이름과 권한을 살려 만들어 둬요. 새로 만든 계정은 <b>설정 › 가족 계정</b>에서 관리자가 비밀번호를 정해 줘야 로그인할 수 있어요. 카카오 장소 검색 키와 가족 영상통화방 링크는 새 서버에서 다시 넣어 주세요.</p>
           <div class="set-actions"><button class="btn primary" id="fullBackupBtn">전체 백업 내려받기 (사진 포함)</button><span class="muted small" id="fullBackupMsg"></span></div>`)
-      + panel('백업 되돌리기', `<p class="set-desc">내려받아 둔 백업 파일(JSON)로 기사·일정·카드·투표 등 자료를 그때 상태로 되돌려요. <b>지금 자료는 모두 백업 파일 내용으로 바뀌어요.</b> 가족 계정과 비밀번호는 그대로예요.</p>
+      + panel('백업 되돌리기', `<p class="set-desc">내려받아 둔 백업 파일(JSON)로 기사·일정·카드·투표 등 자료를 그때 상태로 되돌려요. <b>지금 자료는 모두 백업 파일 내용으로 바뀌어요.</b> 지금 있는 가족 계정과 비밀번호는 그대로이고, 백업 속 계정과 이메일이 같으면 기록이 그 계정으로 이어져요. 이 서버에 없는 계정은 새로 만들어 두니 가족 계정에서 비밀번호를 정해 주세요.</p>
           <div class="row gap"><label class="btn" for="restoreFile">백업 파일 고르기</label><input type="file" id="restoreFile" accept=".json,application/json" hidden><span class="muted small" id="restoreInfo">먼저 지금 상태를 ‘백업 파일 내려받기’로 받아두면 안전해요.</span></div>
           <div id="restoreBox" hidden class="restore-box"></div>`, { cls: 'danger-zone' })
       + (s.no_thumb ? panel('사진 미리보기 만들기', `<p class="set-desc">예전에 올린 사진 ${s.no_thumb}장에는 작은 미리보기가 없어 목록이 느릴 수 있어요. 이 브라우저에서 한 번에 만들어 둘게요. (사진이 많으면 몇 분 걸려요)</p>
@@ -282,7 +282,7 @@
       const box = YT.$('#restoreBox'); box.hidden = false;
       const n = (k) => (Array.isArray(data[k]) ? data[k].length : 0);
       box.innerHTML = `<p><b>${esc(file.name)}</b> · ${esc(YT.shortDate(data.exported))}에 만든 백업</p>
-        <p class="muted small">기사 ${n('articles')} · 일정 ${n('events')} · 카드 ${n('cards')} · 댓글 ${n('comments')} · 투표 ${n('polls')} · 한마디 ${n('notes')} · 인물 ${n('people')} · 할 일 ${n('items')} · 앨범 ${n('albums')} · 사진 정보 ${n('photos')}</p>
+        <p class="muted small">기사 ${n('articles')} · 일정 ${n('events')} · 카드 ${n('cards')} · 댓글 ${n('comments')} · 투표 ${n('polls')} · 한마디 ${n('notes')} · 인물 ${n('people')} · 할 일 ${n('items')} · 앨범 ${n('albums')} · 사진 정보 ${n('photos')} · 포인트 기록 ${n('points')} · 착한 일 ${n('good_deeds')} · 시간표 ${n('timetables')} · 가족 계정 ${n('users')}</p>
         ${data.files ? `<p class="muted small">사진·소리 파일 <b>${Object.keys(data.files).length}개</b>가 들어 있는 전체 백업이에요. 사진도 함께 옮겨져요.</p>` : '<p class="muted small">사진 원본은 이 백업 파일에 들어 있지 않아요. 서버의 <code>data/uploads</code> 폴더가 그대로 있어야 사진이 보여요. (사진까지 옮기려면 ‘전체 백업’ 파일을 쓰세요)</p>'}
         <form class="row gap" id="restoreForm"><input class="input sm" name="c" placeholder="되돌리기" aria-label="확인 문구" style="max-width:9rem"><button class="btn danger">이 백업으로 되돌리기</button></form>
         <p class="muted small">계속하려면 칸에 <b>되돌리기</b>라고 적어주세요.</p>`;
@@ -300,7 +300,11 @@
             for (const k of names) { if (size && size + files[k].length > 3 * 1024 * 1024) await flush(); batch[k] = files[k]; size += files[k].length; }
             await flush();
           } else r = await YT.post('/api/restore', { data, confirm: c });
-          YT.state.settings = r.settings; YT.clearCache(); YT.renderChrome(); YT.toast('백업으로 되돌렸어요.'); draw(view, 'data'); }
+          YT.state.settings = r.settings; YT.clearCache(); YT.renderChrome();
+          const ac = (r.counts && r.counts.accounts) || null;
+          if (!(ac && ac.created && ac.created.length)) YT.toast('백업으로 되돌렸어요.');
+          if (ac && ac.created && ac.created.length) { YT.modal(`<h2>백업으로 되돌렸어요</h2><p>이 서버에 없던 가족 계정 <b>${ac.created.length}개</b>를 만들었어요: ${ac.created.map(esc).join(', ')}</p><p>포인트·기사·착한 일 기록은 그대로 이어져 있어요. <b>가족 계정</b>에서 계정마다 ‘비밀번호 초기화’를 눌러 새 비밀번호를 정해 주면 로그인할 수 있어요.</p><div class="row gap"><a class="btn primary" href="#/settings/family">가족 계정으로 가기</a></div>`); draw(view, 'data'); return; }
+          draw(view, 'data'); }
         catch (err) { YT.err(err); }
       };
     };

@@ -667,6 +667,33 @@ route('GET', '/api/stats', 'admin', () => {
 });
 // 백업 되돌리기: 내려받은 JSON으로 글·일정 자료를 통째로 바꾼다 (가족 계정·비밀번호는 그대로)
 const RESTORE_TABLES = ['settings', 'articles', 'comments', 'reactions', 'events', 'timetables', 'albums', 'folder_links', 'cards', 'people', 'photos', 'polls', 'poll_votes', 'notes', 'items', 'audios', 'points', 'coupons', 'coupon_issues', 'lotto_tickets', 'lotto_draws', 'scratch_tickets', 'deed_menu', 'good_deeds'];
+// 백업 속 가족 계정을 이 서버 계정과 이메일로 짝지어, 포인트·기사·착한 일 등의 주인을 이어 준다.
+// 이 서버에 없는 계정은 이름·권한을 살려 만들어 두고(비밀번호는 쓸 수 없는 값), 관리자가 가족 계정에서 비밀번호를 정한다.
+const USER_REFS = [['articles', 'author_id'], ['articles', 'coauthors'], ['comments', 'user_id'], ['notes', 'user_id'], ['audios', 'owner_id'],
+  ['points', 'user_id'], ['points', 'by_id'], ['coupon_issues', 'user_id'], ['coupon_issues', 'used_by'], ['good_deeds', 'user_id'], ['good_deeds', 'reviewed_by'],
+  ['lotto_tickets', 'user_id'], ['scratch_tickets', 'user_id'], ['timetables', 'owner_id'], ['cards', 'author_id'], ['items', 'author_id'], ['items', 'data'],
+  ['photos', 'owner_id'], ['polls', 'author_id'], ['reactions', 'actor'], ['poll_votes', 'actor'], ['settings', 'value']];
+function restoreAccounts(list) {
+  const out = { matched: 0, created: [], moved: 0 };
+  for (const b of list) {
+    if (!b || typeof b.id !== 'string' || !b.id || typeof b.username !== 'string') continue;
+    const username = b.username.trim().toLowerCase(); if (!username) continue;
+    const same = get('SELECT id FROM users WHERE username=?', username);
+    if (same) {
+      out.matched++;
+      if (same.id === b.id) continue;
+      for (const [t, c] of USER_REFS) { // 계정 번호(UUID)는 겹치지 않아 글자 바꾸기로 안전하게 옮긴다 (함께 쓴 기자 목록·반응 'u:번호'·매달 포인트 설정 포함)
+        try { out.moved += run(`UPDATE ${t} SET ${c}=REPLACE(${c}, ?, ?) WHERE ${c} LIKE ?`, b.id, same.id, '%' + b.id + '%').changes || 0; } catch {}
+      }
+    } else if (!get('SELECT 1 FROM users WHERE id=?', b.id)) {
+      const role = ROLE_RANK[b.role] ? b.role : 'subscriber';
+      run('INSERT INTO users(id,username,display_name,pw_hash,role,timetable_access,created) VALUES(?,?,?,?,?,?,?)', b.id, username,
+        str(b.display_name, 30) || username.split('@')[0], hashPassword(crypto.randomBytes(24).toString('hex')), role, b.timetable_access ? 1 : 0, b.created || now());
+      out.created.push(str(b.display_name, 30) || username);
+    }
+  }
+  return out;
+}
 // 전체 백업에 넣는 사진·소리 파일 이름 (사진 원본·미리보기·소리)
 const UPLOAD_NAME = /^[\w-]{6,80}(\.(jpe?g|png|webp|gif|webm|ogg|m4a|aac|mp3|wav)|_t\.jpg)$/i;
 function uploadNames() {
@@ -723,7 +750,9 @@ route('POST', '/api/restore', 'admin', ({ body }) => {
     }
     for (const [from, to] of Object.entries(CATEGORY_RENAME)) run('UPDATE articles SET category=? WHERE category=?', to, from); // 예전 분류 이름 맞추기
     for (const [from, to] of Object.entries(SECTION_RENAME)) run('UPDATE articles SET section=? WHERE section=?', to, from);
+    if (Array.isArray(data.users)) counts.accounts = restoreAccounts(data.users);
     db.exec('COMMIT');
+    if (typeof pointsChecked !== 'undefined') pointsChecked.clear(); // 생일·매달 포인트를 새 자료로 다시 확인
     // 전체 백업(사진·소리 포함)이면 파일도 되살린다
     if (data.files && typeof data.files === 'object') counts.files = restoreFiles(data.files);
   } catch (e) { db.exec('ROLLBACK'); fail(400, '백업 파일을 읽는 중 문제가 생겨 아무것도 바꾸지 않았어요: ' + e.message); }

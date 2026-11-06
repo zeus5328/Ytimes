@@ -961,7 +961,7 @@ figcaption { font-size: .8125rem; color: var(--muted); margin-top: .5rem; }
 .guide section { border-top: 1px solid var(--line-2); padding: 1rem 0 .5rem; }
 .guide h2 { font-family: var(--serif); font-size: .9375rem; font-weight: 700; margin-bottom: .375rem; }
 .guide p, .guide li { font-size: .875rem; color: var(--ink-2); }
-.guide ol { padding-left: 1.125rem; margin: 0; }
+.guide ol { padding-left: 1.6rem; margin: 0; }
 .guide .table-wrap, .guide .table { border: 0; }
 
 /* 바닥 */
