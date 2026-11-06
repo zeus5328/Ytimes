@@ -816,7 +816,7 @@ route('PUT', '/api/articles/:id', 'reporter', ({ params, body, user }) => {
   const a = get('SELECT * FROM articles WHERE id=? AND deleted=0', params.id) || fail(404, '기사를 찾을 수 없습니다.');
   const editor = isRole(user, 'editor');
   if (!editor && !isWriter(a, user)) fail(403, '본인이 쓴 기사만 수정할 수 있습니다.');
-  if (!editor && !['draft', 'changes'].includes(a.status)) fail(400, '승인 요청 중이거나 발행된 기사는 편집장에게 수정을 요청하세요.');
+  // 내가 쓴 기사(대표·함께 쓴 기자)는 발행된 뒤에도 고칠 수 있어요 — 상태는 그대로
   const f = articleFields(body);
   const before = new Set(articlePhotoIds(a));
   const co = JSON.stringify(JSON.parse(f.coauthors).filter((x) => x !== a.author_id));

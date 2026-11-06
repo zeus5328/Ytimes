@@ -32,7 +32,7 @@
   // 이 기사에 대해 지금 내가 누를 수 있는 버튼들 [action, 이름, 강조]
   YT.articleButtons = (a) => {
     const { editor, senior } = who(); const own = a.is_own; const out = [];
-    const canEdit = editor || (own && ['draft', 'changes'].includes(a.status));
+    const canEdit = editor || own;
     if (['draft', 'changes'].includes(a.status)) {
       if (own && senior && !editor) out.push(['publish', '바로 발행', 'accent']);
       else if (editor) out.push(['publish', '바로 발행', 'accent']);

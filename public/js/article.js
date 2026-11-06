@@ -19,7 +19,7 @@
     const prev = idx >= 0 ? all[idx + 1] : null, next = idx > 0 ? all[idx - 1] : null;
     const tagList = YT.tags(a.hashtags);
     const related = all.filter((x) => x.id !== a.id && (YT.tags(x.hashtags).some((t) => tagList.includes(t)) || x.section === a.section)).slice(0, 3);
-    const canEdit = YT.can('editor') || (a.is_own && ['draft', 'changes'].includes(a.status));
+    const canEdit = YT.can('editor') || a.is_own;
     view.innerHTML = `
       ${a.status !== 'published' || (YT.state.user && YT.articleButtons && YT.articleButtons(a).buttons.length) ? `<div class="review-bar ${a.status !== 'published' ? 'unpub' : ''}" id="reviewBar">
         <div><span class="status s-${a.status}">${esc(STATUS[a.status])}</span> ${a.status !== 'published' ? '<b>아직 공개되지 않은 기사예요</b>' : ''}
