@@ -275,6 +275,7 @@ function notify(to, n) {
 const usersWith = (minRole, except) => all('SELECT id, role FROM users').filter((u) => ROLE_RANK[u.role] >= ROLE_RANK[minRole] && u.id !== except).map((u) => u.id);
 // 오늘·내일 생일과 기념일 — 알림함을 열 때 그 사람 몫을 만든다
 function birthdayNotices(user) {
+  try { birthdayPoints(user); } catch (e) { console.error('생일 포인트:', e.message); }
   deadlineNotices(user);
   capsuleNotices(user);
   if (!isRole(user, 'subscriber')) return;
@@ -1637,7 +1638,7 @@ if (getSetting('coupons_seeded', '') !== '1') { // 처음 한 번만 예시 쿠�
    ['늦잠 자기', '주말 아침 늦잠을 허락받아요.', 5000, '😴']].forEach(([t, d, p, ic], i) =>
     run('INSERT INTO coupons(id,title,description,price,stock,per_user,icon,active,sort,created) VALUES(?,?,?,?,?,?,?,?,?,?)', uid(), t, d, p, -1, 0, ic, 1, i, now()));
 }
-const pointRate = () => ({ lead: Math.max(0, parseInt(getSetting('points_article', '2000'), 10) || 0), co: Math.max(0, parseInt(getSetting('points_coauthor', '500'), 10) || 0) });
+const pointRate = () => ({ lead: Math.max(0, parseInt(getSetting('points_article', '2000'), 10) || 0), co: Math.max(0, parseInt(getSetting('points_coauthor', '500'), 10) || 0), bday: Math.max(0, parseInt(getSetting('points_birthday', '20000'), 10) || 0) });
 const balance = (userId) => get('SELECT COALESCE(SUM(amount),0) s FROM points WHERE user_id=?', userId).s;
 function addPoints(userId, amount, reason, kind = 'manual', ref = '', byId = '') {
   if (!userId || !amount) return false;
@@ -1671,6 +1672,7 @@ route('GET', '/api/points', 'reporter', ({ user, query }) => {
       .map((u) => ({ ...u, balance: balance(u.id), articles: get("SELECT COUNT(*) c FROM points WHERE user_id=? AND kind='article'", u.id).c }));
     out.pending = all("SELECT * FROM coupon_issues WHERE status='issued' ORDER BY created").map(issueOut);
     out.recent = all("SELECT * FROM coupon_issues WHERE status<>'issued' ORDER BY COALESCE(NULLIF(used_at,''), created) DESC LIMIT 30").map(issueOut);
+    out.birthdays = all('SELECT id, display_name FROM users ORDER BY created').map((u) => { const b = userBirthday(u); return { id: u.id, display_name: u.display_name, title: b ? b.title : '', next: b ? b.next : '' }; });
     out.unpaid = all("SELECT * FROM articles WHERE deleted=0 AND status='published' AND author_id IS NOT NULL AND author_id<>''").filter((a) => !get("SELECT 1 FROM points WHERE kind='article' AND ref=? AND user_id=?", a.id, a.author_id)).length;
   }
   return out;
@@ -1734,6 +1736,7 @@ route('POST', '/api/points/grant', 'admin', ({ body, user }) => {
 route('PUT', '/api/points/rate', 'admin', ({ body }) => {
   setSetting('points_article', Math.max(0, Math.min(1e6, parseInt(body.lead, 10) || 0)));
   setSetting('points_coauthor', Math.max(0, Math.min(1e6, parseInt(body.co, 10) || 0)));
+  if (body.bday !== undefined) setSetting('points_birthday', Math.max(0, Math.min(1e6, parseInt(body.bday, 10) || 0)));
   return { ok: true, rate: pointRate() };
 });
 route('POST', '/api/points/backpay', 'admin', () => {
@@ -1747,6 +1750,28 @@ const BASE_POINTS = 2000;
 const baseSkip = (u) => /김신중/.test(u.display_name || '') || String(u.display_name || '').trim() === '아빠' || /^zeus5328@/i.test(u.username || '');
 function giveBasePoints(u) { return !!u && !baseSkip(u) && addPoints(u.id, BASE_POINTS, '기본 포인트', 'base', 'base-2026-11'); }
 for (const u of all('SELECT id, username, display_name FROM users')) giveBasePoints(u);
+
+// 생일 포인트 — 가족 계정 이름이 들어간 생일 일정(예: ‘엄마 생일(김은지)’)을 찾아, 그날(한국 시간) 한 번 준다
+const BDAY_START = '2026-11-06'; // 이 날부터 돌아오는 생일에만 (지난 생일은 소급하지 않아요)
+function userBirthday(u) {
+  const name = String(u.display_name || '').replace(/\s+/g, ''); if (name.length < 2) return null;
+  const hits = all("SELECT * FROM events WHERE deleted=0 AND kind='birthday'").filter((x) => String(x.title).replace(/\s+/g, '').includes(name));
+  const e = hits.find((x) => !/친구/.test(x.title)) || hits[0];
+  if (!e) return null;
+  const today = kstToday(), y = +today.slice(0, 4);
+  const dates = [y - 1, y, y + 1].flatMap((yy) => occurrencesForYear(yy).filter((o) => o.id === e.id).map((o) => o.date));
+  return { id: e.id, title: e.title, dates, next: dates.filter((d) => d >= today).sort()[0] || '' };
+}
+function birthdayPoints(user) {
+  const amt = pointRate().bday; if (!amt || !user) return;
+  const b = userBirthday(user); if (!b) return;
+  const today = kstToday();
+  // 오늘이 생일이거나, 생일 뒤 30일 안에 처음 들어왔을 때 (그 해 한 번)
+  const d = b.dates.filter((x) => x <= today && x >= BDAY_START && Date.parse(today) - Date.parse(x) <= 30 * 864e5).sort().pop();
+  if (!d) return;
+  if (addPoints(user.id, amt, `생일 축하 포인트 (${d.slice(0, 4)})`, 'birthday', 'bday-' + d))
+    notify([user.id], { kind: 'points', title: `생일 축하해요! +${amt.toLocaleString('ko-KR')}포인트`, body: '유니 타임즈가 드리는 생일 선물이에요. 원고료 · 쿠폰에서 써 보세요.', link: '#/points', ukey: 'bday-points:' + d });
+}
 
 // ───────────────────────── 착한 일 — 아이가 한 일을 올리면 부모님(시니어기자 이상)이 확인하고 포인트를 준다
 db.exec(`CREATE TABLE IF NOT EXISTS deed_menu (id TEXT PRIMARY KEY, title TEXT NOT NULL, points INTEGER NOT NULL, icon TEXT DEFAULT '', active INTEGER DEFAULT 1, sort INTEGER DEFAULT 0, created TEXT NOT NULL);

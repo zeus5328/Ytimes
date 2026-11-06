@@ -18,7 +18,7 @@
       const bal = data.balance;
       box.innerHTML = `<div class="pt-hero">
           <div><span class="pt-k">내 포인트</span><b class="pt-bal">${P(bal)}<small>P</small></b>
-            <span class="pt-sub">지금까지 받은 포인트 ${P(data.earned)}P · 기사 한 편이 신문에 실리면 <b>${P(data.rate.lead)}P</b>${data.rate.co ? `, 함께 쓴 기자는 <b>${P(data.rate.co)}P</b>` : ''}</span></div>
+            <span class="pt-sub">지금까지 받은 포인트 ${P(data.earned)}P · 기사 한 편이 신문에 실리면 <b>${P(data.rate.lead)}P</b>${data.rate.co ? `, 함께 쓴 기자는 <b>${P(data.rate.co)}P</b>` : ''}${data.rate.bday ? ` · 생일에는 <b>${P(data.rate.bday)}P</b> 선물` : ''}</span></div>
           <a class="btn primary" href="#/write">기사 쓰고 원고료 받기</a></div>
         ${issued.length ? `<section class="pt-sec"><div class="side-head"><h2>내 쿠폰</h2><span class="muted small">부모님께 보여 주고 쓰면, 부모님이 ‘사용 완료’를 눌러 줘요</span></div>
           <div class="cp-list">${issued.map((x) => ticket(x, { cls: 'mine', meta: `쿠폰 번호 <code>${esc(x.code)}</code> · ${dt(x.created)} 구입`,
@@ -69,8 +69,13 @@
           <button class="btn">주기 · 빼기</button></form></section>
       <section class="pt-sec"><div class="side-head"><h2>원고료</h2></div>
         <form class="form-row" id="rateForm"><label>기사 한 편 (대표 기자)<input class="input" name="lead" inputmode="numeric" value="${d.rate.lead}"></label>
-          <label>함께 쓴 기자 (한 사람당)<input class="input" name="co" inputmode="numeric" value="${d.rate.co}"></label><button class="btn">저장</button></form>
-        <p class="muted small">기사가 <b>처음 신문에 실릴 때</b> 한 번만 들어가요. 내렸다가 다시 실어도 또 주지 않아요.</p>
+          <label>함께 쓴 기자 (한 사람당)<input class="input" name="co" inputmode="numeric" value="${d.rate.co}"></label>
+          <label>생일 축하 포인트<input class="input" name="bday" inputmode="numeric" value="${d.rate.bday}"></label><button class="btn">저장</button></form>
+        <p class="muted small">원고료는 기사가 <b>처음 신문에 실릴 때</b> 한 번만 들어가요. 내렸다가 다시 실어도 또 주지 않아요.</p>
+      </section>
+      <section class="pt-sec"><div class="side-head"><h2>생일 축하 포인트</h2><span class="muted small">생일날 사이트에 들어오면 ${P(d.rate.bday)}P가 한 번 들어가요 (생일 뒤 30일 안에 들어와도 받아요)</span></div>
+        <table class="table pt-members"><thead><tr><th>가족 계정</th><th>찾은 생일 일정</th><th>다음 생일</th></tr></thead><tbody>${(d.birthdays || []).map((b) => `<tr><th>${esc(b.display_name)}</th><td>${b.title ? esc(b.title) : '<span class="muted">못 찾았어요</span>'}</td><td>${b.next ? dt(b.next) : '—'}</td></tr>`).join('')}</tbody></table>
+        <p class="muted small">일정 › 생일·기념일에 있는 생일 제목에 <b>계정 이름</b>(예: ‘엄마 생일(김은지)’)이 들어 있으면 그 생일로 줘요. ‘못 찾았어요’라면 생일 제목에 이름을 넣어 주세요. 0으로 저장하면 생일 포인트를 주지 않아요.</p>
 </section>
       <section class="pt-sec"><div class="side-head"><h2>쿠폰 만들기 · 고치기</h2><button class="btn small" data-new>새 쿠폰</button></div>
         <div class="cp-list">${d.coupons.map((c) => ticket(c, { cls: c.active ? '' : 'dim', meta: `${c.active ? '판매 중' : '판매 멈춤'} · 판 수량 ${c.issued}장${c.stock >= 0 ? ` / ${c.stock}장` : ''}${c.per_user ? ` · 1인 ${c.per_user}장` : ''}`,
