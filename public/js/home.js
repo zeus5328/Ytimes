@@ -49,7 +49,7 @@
           <div class="a-kicker"><span>${esc(a.section)}</span><span>${esc(a.category)}</span>${YT.isNew(a) ? '<b class="new-dot">새 글</b>' : ''}</div>
           <h2 class="lead-title">${esc(a.title)}</h2>
           <p class="lead-excerpt">${esc((a.excerpt || '').slice(0, 150))}${(a.excerpt || '').length > 150 ? '…' : ''}</p>
-          <div class="a-byline"><span>${esc(YT.shortDate(a.published_at || a.updated))}</span><span>${esc(a.author_name)}</span><span>${YT.readMinutes(a)}분 읽기</span></div>
+          <div class="a-byline"><span>${esc(YT.shortDate(a.published_at || a.updated))}</span><span>${esc(a.author_name)} 기자</span><span>${YT.readMinutes(a)}분 읽기</span></div>
         </div>
       </a>
     </article>`;

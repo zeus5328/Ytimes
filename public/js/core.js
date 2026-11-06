@@ -170,7 +170,7 @@
           <div class="a-kicker"><span>${esc(a.section)}</span>${YT.isNew(a) ? '<b class="new-dot">새 글</b>' : ''}</div>
           <h3 class="a-title">${esc(a.title)}</h3>
           ${opts.excerpt !== false ? `<p class="a-excerpt">${esc(a.excerpt || '')}</p>` : ''}
-          <div class="a-byline"><span>${esc(YT.shortDate(a.published_at || a.updated))}</span><span>${esc(a.author_name)}</span>
+          <div class="a-byline"><span>${esc(YT.shortDate(a.published_at || a.updated))}</span><span>${esc(a.author_name)} 기자</span>
             ${a.comment_count ? `<span>댓글 ${a.comment_count}</span>` : ''}${YT.rxTotal(a) ? `<span>공감 ${YT.rxTotal(a)}</span>` : ''}</div>
         </div>
       </a>
