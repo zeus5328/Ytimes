@@ -1124,7 +1124,11 @@ route('POST', '/api/cards', 'reporter', ({ body, user }) => {
   const f = cardFields(body); const id = uid(); const t = now();
   run('INSERT INTO cards(id,type,design,color,to_name,from_name,card_date,title,message,photo,author_id,created,updated,open_on) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
     id, f.type, f.design, f.color, f.to_name, f.from_name, f.card_date, f.title, f.message, f.photo, user.id, t, t, f.open_on);
-  return { id };
+  // 카드·편지 포인트 — 새로 써서 보낼 때 한 장마다 (하루 CARD_DAILY장까지)
+  let points = 0; const amt = pointRate().card;
+  if (amt && get("SELECT COUNT(*) c FROM points WHERE user_id=? AND kind='card' AND created>=?", user.id, kstDayStart()).c < CARD_DAILY
+    && addPoints(user.id, amt, `${CARD_NAMES[f.type] || '편지'} 보내기${f.to_name ? ' · ' + f.to_name : ''}`, 'card', id)) points = amt;
+  return { id, points };
 });
 route('PUT', '/api/cards/:id', 'reporter', ({ body, user, params }) => {
   const c = get('SELECT * FROM cards WHERE id=? AND deleted=0', params.id) || fail(404, '카드를 찾을 수 없습니다.');
@@ -1639,7 +1643,9 @@ if (getSetting('coupons_seeded', '') !== '1') { // 처음 한 번만 예시 쿠�
    ['늦잠 자기', '주말 아침 늦잠을 허락받아요.', 5000, '😴']].forEach(([t, d, p, ic], i) =>
     run('INSERT INTO coupons(id,title,description,price,stock,per_user,icon,active,sort,created) VALUES(?,?,?,?,?,?,?,?,?,?)', uid(), t, d, p, -1, 0, ic, 1, i, now()));
 }
-const pointRate = () => ({ lead: Math.max(0, parseInt(getSetting('points_article', '2000'), 10) || 0), co: Math.max(0, parseInt(getSetting('points_coauthor', '500'), 10) || 0), bday: Math.max(0, parseInt(getSetting('points_birthday', '20000'), 10) || 0) });
+const CARD_DAILY = 5;
+const CARD_NAMES = { letter: '편지', birthday: '생일 카드', anniversary: '기념일 카드', christmas: '크리스마스 카드', newyear: '연하장' };
+const pointRate = () => ({ card: Math.max(0, parseInt(getSetting('points_card', '1000'), 10) || 0), lead: Math.max(0, parseInt(getSetting('points_article', '2000'), 10) || 0), co: Math.max(0, parseInt(getSetting('points_coauthor', '500'), 10) || 0), bday: Math.max(0, parseInt(getSetting('points_birthday', '20000'), 10) || 0) });
 const balance = (userId) => get('SELECT COALESCE(SUM(amount),0) s FROM points WHERE user_id=?', userId).s;
 function addPoints(userId, amount, reason, kind = 'manual', ref = '', byId = '') {
   if (!userId || !amount) return false;
@@ -1738,6 +1744,7 @@ route('PUT', '/api/points/rate', 'admin', ({ body }) => {
   setSetting('points_article', Math.max(0, Math.min(1e6, parseInt(body.lead, 10) || 0)));
   setSetting('points_coauthor', Math.max(0, Math.min(1e6, parseInt(body.co, 10) || 0)));
   if (body.bday !== undefined) setSetting('points_birthday', Math.max(0, Math.min(1e6, parseInt(body.bday, 10) || 0)));
+  if (body.card !== undefined) setSetting('points_card', Math.max(0, Math.min(1e6, parseInt(body.card, 10) || 0)));
   return { ok: true, rate: pointRate() };
 });
 route('POST', '/api/points/backpay', 'admin', () => {

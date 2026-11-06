@@ -111,7 +111,7 @@
         if (!st.open_on || st.open_on <= YT.today()) return YT.toast('타임캡슐을 여는 날을 내일 이후로 골라 주세요.', 'error');
         if (!YT.confirm(`${st.open_on}까지 봉인할까요? 그날까지는 쓴 사람도 내용을 볼 수 없어요.`)) return;
       } else st.open_on = '';
-      try { if (c.id) await YT.put('/api/cards/' + c.id, st); else await YT.post('/api/cards', st); YT.toast(st.open_on ? '타임캡슐을 봉인했어요.' : '카드를 저장했습니다.'); YT.go('#/post'); } catch (err) { YT.err(err); }
+      try { let r = {}; if (c.id) await YT.put('/api/cards/' + c.id, st); else r = await YT.post('/api/cards', st); YT.toast((st.open_on ? '타임캡슐을 봉인했어요.' : c.id ? '카드를 저장했습니다.' : '카드를 보냈어요!') + (r.points ? ` +${r.points.toLocaleString('ko-KR')}포인트` : '')); YT.go('#/post'); } catch (err) { YT.err(err); }
     };
   }
   YT.addRoute('/post/write', writer);
