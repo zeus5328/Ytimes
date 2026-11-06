@@ -649,7 +649,7 @@ route('GET', '/api/stats', 'admin', () => {
   };
 });
 // 백업 되돌리기: 내려받은 JSON으로 글·일정 자료를 통째로 바꾼다 (가족 계정·비밀번호는 그대로)
-const RESTORE_TABLES = ['settings', 'articles', 'comments', 'reactions', 'events', 'timetables', 'albums', 'folder_links', 'cards', 'people', 'photos', 'polls', 'poll_votes', 'notes', 'items', 'audios', 'points', 'coupons', 'coupon_issues'];
+const RESTORE_TABLES = ['settings', 'articles', 'comments', 'reactions', 'events', 'timetables', 'albums', 'folder_links', 'cards', 'people', 'photos', 'polls', 'poll_votes', 'notes', 'items', 'audios', 'points', 'coupons', 'coupon_issues', 'lotto_tickets', 'lotto_draws', 'scratch_tickets'];
 // 전체 백업에 넣는 사진·소리 파일 이름 (사진 원본·미리보기·소리)
 const UPLOAD_NAME = /^[\w-]{6,80}(\.(jpe?g|png|webp|gif|webm|ogg|m4a|aac|mp3|wav)|_t\.jpg)$/i;
 function uploadNames() {
@@ -1738,6 +1738,115 @@ route('POST', '/api/points/backpay', 'admin', () => {
   let n = 0, sum = 0;
   for (const a of all("SELECT * FROM articles WHERE deleted=0 AND status='published' ORDER BY published_at")) for (const [, amt] of payManuscript(a)) { n++; sum += amt; }
   return { ok: true, message: n ? `지난 기사 원고료 ${n}건, 모두 ${sum.toLocaleString('ko-KR')}포인트를 줬어요.` : '줄 원고료가 없어요. (이미 모두 받았어요)' };
+});
+
+// ───────────────────────── 놀이: 주간 로또 · 즉석 복권 (원고료 포인트로)
+db.exec(`CREATE TABLE IF NOT EXISTS lotto_tickets (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, round INTEGER NOT NULL, numbers TEXT NOT NULL, auto INTEGER DEFAULT 0,
+  price INTEGER NOT NULL, rank INTEGER DEFAULT 0, prize INTEGER DEFAULT 0, settled INTEGER DEFAULT 0, created TEXT NOT NULL);
+CREATE INDEX IF NOT EXISTS lotto_round ON lotto_tickets(round);
+CREATE TABLE IF NOT EXISTS lotto_draws (round INTEGER PRIMARY KEY, numbers TEXT NOT NULL, bonus INTEGER NOT NULL, drawn_at TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS scratch_tickets (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, price INTEGER NOT NULL, prize INTEGER NOT NULL, symbols TEXT NOT NULL,
+  scratched INTEGER DEFAULT 0, created TEXT NOT NULL);`);
+// 1회 추첨 = 2026-10-31(토) 저녁 8시(한국 시각). 그 뒤로 매주 토요일 저녁 8시
+const LOTTO_BASE = Date.parse('2026-10-31T11:00:00Z'), WEEK = 7 * 864e5;
+const drawTime = (r) => LOTTO_BASE + (r - 1) * WEEK;
+const openRound = (t = Date.now()) => Math.max(1, Math.floor((t - LOTTO_BASE) / WEEK) + 2);
+const gameNum = (k, d) => Math.max(0, parseInt(getSetting(k, String(d)), 10) || 0);
+const lottoConf = () => ({ price: gameNum('lotto_price', 500), max: gameNum('lotto_max', 5),
+  prizes: [0, gameNum('lotto_p1', 100000), gameNum('lotto_p2', 30000), gameNum('lotto_p3', 10000), gameNum('lotto_p4', 3000), gameNum('lotto_p5', 1000)] });
+const SCRATCH = [['💎', 100], ['🍀', 10], ['⭐', 3], ['🍬', 1]]; // 그림, 가격의 몇 배
+const scratchConf = () => ({ price: gameNum('scratch_price', 300), daily: gameNum('scratch_daily', 5) });
+// 오늘(한국 시각) 0시를 ISO로 — 하루 몇 장 셀 때
+const kstDayStart = () => { const d = new Date(Date.now() + 9 * 3600e3); d.setUTCHours(0, 0, 0, 0); return new Date(d.getTime() - 9 * 3600e3).toISOString(); };
+const rnd = (n) => crypto.randomBytes(4).readUInt32BE(0) % n;
+function pickNumbers() { const s = new Set(); while (s.size < 6) s.add(rnd(45) + 1); return [...s].sort((a, b) => a - b); }
+const nums = (t) => String(t || '').split(',').map(Number).filter(Boolean);
+// 추첨 시간이 지난 회차를 뽑고 당첨금을 준다 (따로 예약 작업 없이, 누가 열어 볼 때)
+function settleLotto() {
+  const rounds = all('SELECT DISTINCT round FROM lotto_tickets WHERE settled=0').map((r) => r.round).filter((r) => drawTime(r) <= Date.now());
+  const conf = lottoConf();
+  for (const r of rounds) {
+    let d = get('SELECT * FROM lotto_draws WHERE round=?', r);
+    if (!d) {
+      const main = pickNumbers(); let bonus; do bonus = rnd(45) + 1; while (main.includes(bonus));
+      run('INSERT OR IGNORE INTO lotto_draws(round,numbers,bonus,drawn_at) VALUES(?,?,?,?)', r, main.join(','), bonus, new Date(drawTime(r)).toISOString());
+      d = get('SELECT * FROM lotto_draws WHERE round=?', r);
+    }
+    const win = nums(d.numbers);
+    for (const t of all('SELECT * FROM lotto_tickets WHERE round=? AND settled=0', r)) {
+      const mine = nums(t.numbers); const hit = mine.filter((n) => win.includes(n)).length; const bonusHit = mine.includes(d.bonus);
+      const rank = hit === 6 ? 1 : hit === 5 && bonusHit ? 2 : hit === 5 ? 3 : hit === 4 ? 4 : hit === 3 ? 5 : 0;
+      const prize = rank ? conf.prizes[rank] : 0;
+      if (run('UPDATE lotto_tickets SET settled=1, rank=?, prize=? WHERE id=? AND settled=0', rank, prize, t.id).changes && prize) {
+        addPoints(t.user_id, prize, `로또 ${r}회 ${rank}등 당첨`, 'lotto_win', t.id);
+        notify([t.user_id], { kind: 'points', title: `로또 ${r}회 ${rank}등 당첨! ${prize.toLocaleString('ko-KR')}포인트`, body: `당첨 번호 ${win.join(' ')} + ${d.bonus}`, link: '#/games/lotto' });
+      }
+    }
+  }
+}
+route('GET', '/api/games/lotto', 'reporter', ({ user }) => {
+  settleLotto();
+  const r = openRound(); const conf = lottoConf();
+  const last = get('SELECT * FROM lotto_draws ORDER BY round DESC LIMIT 1');
+  const mine = all('SELECT * FROM lotto_tickets WHERE user_id=? ORDER BY round DESC, created DESC LIMIT 60', user.id);
+  const draws = {}; for (const d of all('SELECT * FROM lotto_draws ORDER BY round DESC LIMIT 12')) draws[d.round] = { numbers: nums(d.numbers), bonus: d.bonus };
+  return { round: r, draw_at: new Date(drawTime(r)).toISOString(), conf, balance: balance(user.id),
+    bought: mine.filter((t) => t.round === r).length, last: last ? { round: last.round, numbers: nums(last.numbers), bonus: last.bonus, drawn_at: last.drawn_at,
+      winners: all('SELECT rank, COUNT(*) c FROM lotto_tickets WHERE round=? AND rank>0 GROUP BY rank ORDER BY rank', last.round) } : null,
+    tickets: mine.map((t) => ({ ...t, numbers: nums(t.numbers), draw: draws[t.round] || null })), draws };
+});
+route('POST', '/api/games/lotto', 'reporter', ({ user, body }) => {
+  const r = openRound(); const conf = lottoConf();
+  if (!conf.price) fail(400, '지금은 로또를 팔지 않아요.');
+  const sets = (Array.isArray(body.sets) ? body.sets : [body.numbers]).slice(0, 5);
+  if (!sets.length) fail(400, '번호를 골라 주세요.');
+  const have = get('SELECT COUNT(*) c FROM lotto_tickets WHERE user_id=? AND round=?', user.id, r).c;
+  if (conf.max && have + sets.length > conf.max) fail(400, `한 회에 ${conf.max}장까지 살 수 있어요. (이번 회 ${have}장 샀어요)`);
+  const cost = conf.price * sets.length;
+  if (balance(user.id) < cost) fail(400, `포인트가 모자라요. (${cost.toLocaleString('ko-KR')}포인트 필요)`);
+  const out = [];
+  for (const raw of sets) {
+    const auto = !raw || raw === 'auto';
+    const n = auto ? pickNumbers() : [...new Set((Array.isArray(raw) ? raw : []).map(Number))].filter((x) => Number.isInteger(x) && x >= 1 && x <= 45).sort((a, b) => a - b);
+    if (n.length !== 6) fail(400, '1부터 45까지 서로 다른 번호 6개를 골라 주세요.');
+    const id = uid();
+    run('INSERT INTO lotto_tickets(id,user_id,round,numbers,auto,price,created) VALUES(?,?,?,?,?,?,?)', id, user.id, r, n.join(','), auto ? 1 : 0, conf.price, now());
+    addPoints(user.id, -conf.price, `로또 ${r}회 구입`, 'lotto_buy', id);
+    out.push({ id, numbers: n, auto });
+  }
+  return { ok: true, round: r, tickets: out, balance: balance(user.id) };
+});
+route('GET', '/api/games/scratch', 'reporter', ({ user }) => {
+  const c = scratchConf();
+  return { conf: c, table: SCRATCH.map(([s, x]) => ({ symbol: s, prize: x * c.price })), balance: balance(user.id),
+    today: all('SELECT COUNT(*) c FROM scratch_tickets WHERE user_id=? AND created>=?', user.id, kstDayStart())[0].c,
+    tickets: all('SELECT * FROM scratch_tickets WHERE user_id=? ORDER BY created DESC LIMIT 20', user.id).map((t) => ({ ...t, symbols: t.scratched ? t.symbols.split(',') : null })) };
+});
+route('POST', '/api/games/scratch', 'reporter', ({ user }) => {
+  const c = scratchConf(); if (!c.price) fail(400, '지금은 즉석 복권을 팔지 않아요.');
+  const n = get('SELECT COUNT(*) c FROM scratch_tickets WHERE user_id=? AND created>=?', user.id, kstDayStart()).c;
+  if (c.daily && n >= c.daily) fail(400, `즉석 복권은 하루 ${c.daily}장까지예요. 내일 또 해요!`);
+  if (balance(user.id) < c.price) fail(400, `포인트가 모자라요. (${c.price.toLocaleString('ko-KR')}포인트 필요)`);
+  // 당첨 확률: 💎 1/1000 · 🍀 1/100 · ⭐ 1/20 · 🍬(본전) 1/5
+  const roll = rnd(1000); const tier = roll < 1 ? 0 : roll < 11 ? 1 : roll < 61 ? 2 : roll < 261 ? 3 : -1;
+  let symbols;
+  if (tier >= 0) symbols = [SCRATCH[tier][0], SCRATCH[tier][0], SCRATCH[tier][0]];
+  else { do symbols = [0, 1, 2].map(() => SCRATCH[rnd(4)][0]); while (symbols[0] === symbols[1] && symbols[1] === symbols[2]); }
+  const prize = tier >= 0 ? SCRATCH[tier][1] * c.price : 0; const id = uid();
+  run('INSERT INTO scratch_tickets(id,user_id,price,prize,symbols,created) VALUES(?,?,?,?,?,?)', id, user.id, c.price, prize, symbols.join(','), now());
+  addPoints(user.id, -c.price, '즉석 복권 구입', 'scratch_buy', id);
+  return { ok: true, id, balance: balance(user.id) };
+});
+// 긁기 끝 — 결과를 보여 주고 당첨금을 준다
+route('POST', '/api/games/scratch/:id', 'reporter', ({ user, params }) => {
+  const t = get('SELECT * FROM scratch_tickets WHERE id=? AND user_id=?', params.id, user.id) || fail(404, '복권을 찾을 수 없어요.');
+  if (run('UPDATE scratch_tickets SET scratched=1 WHERE id=? AND scratched=0', t.id).changes && t.prize) addPoints(user.id, t.prize, '즉석 복권 당첨', 'scratch_win', t.id);
+  return { symbols: t.symbols.split(','), prize: t.prize, balance: balance(user.id) };
+});
+route('PUT', '/api/games/conf', 'admin', ({ body }) => {
+  for (const k of ['lotto_price', 'lotto_max', 'lotto_p1', 'lotto_p2', 'lotto_p3', 'lotto_p4', 'lotto_p5', 'scratch_price', 'scratch_daily'])
+    if (k in body) setSetting(k, Math.max(0, Math.min(1e7, parseInt(body[k], 10) || 0)));
+  return { ok: true, lotto: lottoConf(), scratch: scratchConf() };
 });
 
 async function handle(req, res) {

@@ -1934,3 +1934,51 @@ div.gl:hover { border-color: var(--line); }
 @media (max-width: 480px) { .cp-ticket::before, .cp-ticket::after { right: 6.25rem; } .cp-side { width: 6.25rem; } .pt-hist li { grid-template-columns: 5.25rem 1fr auto; gap: .5rem; } .cp-price { font-size: 1rem; } }
 .pt-backpay { display: flex; justify-content: space-between; align-items: center; gap: .75rem 1rem; flex-wrap: wrap; padding: 1rem 1.25rem; margin-bottom: 1.5rem; border: 1px solid var(--ink); border-radius: var(--r-lg); background: var(--surface); }
 .pt-backpay > div { display: grid; gap: .125rem; } .pt-backpay small { color: var(--muted); font-size: .8125rem; }
+/* 놀이: 사다리타기 */
+.ld-wrap { display: grid; justify-content: center; overflow-x: auto; padding-bottom: .5rem; }
+.ld-grid { display: grid; }
+.ld-top { margin: 0 .25rem; padding: .5rem .25rem; border: 2px solid var(--c); border-radius: var(--r); background: var(--surface); color: var(--ink); font-weight: 700; font-size: .875rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
+.ld-top:hover { background: var(--c); color: #fff; }
+.ld-bot { margin: 0 .25rem; padding: .5rem .25rem; min-height: 2.5rem; display: grid; place-items: center; border: 2px dashed var(--c); border-radius: var(--r); font-size: .8125rem; font-weight: 600; text-align: center; color: var(--muted); }
+.ld-bot.open { border-style: solid; color: var(--ink); background: var(--surface); }
+.ld-svg { width: 100%; display: block; }
+.ld-pole { stroke: var(--ink-2); stroke-width: 3; stroke-linecap: round; opacity: .55; }
+.ld-path { fill: none; stroke-width: 5; stroke-linecap: round; stroke-linejoin: round; }
+.ld-res { list-style: none; padding: 0; margin: 1rem auto 0; display: flex; flex-wrap: wrap; gap: .5rem 1.25rem; justify-content: center; font-size: .9375rem; }
+.ld-form { display: grid; gap: .75rem; margin-top: .75rem; }
+.ld-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+.ld-cols > div { display: grid; gap: .375rem; align-content: start; }
+.center { text-align: center; justify-content: center; }
+/* 놀이: 로또 */
+.lt-head { display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap; padding: 1.25rem 1.5rem; border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--surface); margin-bottom: 1.5rem; }
+.lt-head > div { display: grid; gap: .25rem; }
+.lt-round { font-size: 2rem; font-weight: 800; letter-spacing: -.03em; line-height: 1.1; }
+.lt-bal { text-align: right; } .lt-bal b { font-size: 1.25rem; }
+.lt-balls { display: flex; flex-wrap: wrap; gap: .375rem; align-items: center; }
+.lt-ball { width: 2.5rem; height: 2.5rem; border-radius: 50%; display: grid; place-items: center; font-weight: 800; font-size: .9375rem; color: #fff; text-shadow: 0 1px 1px rgba(0,0,0,.25); flex: none; }
+.lt-balls.sm .lt-ball { width: 1.875rem; height: 1.875rem; font-size: .75rem; }
+.b1 { background: #F2B705; } .b2 { background: #4A8FDB; } .b3 { background: #E5534B; } .b4 { background: #8C8C8C; } .b5 { background: #4CAF50; }
+.lt-ball.miss { background: var(--surface-2); color: var(--muted); text-shadow: none; }
+.lt-ball.bonus { outline: 2px dashed var(--ink-2); outline-offset: 2px; }
+.lt-plus { font-weight: 800; color: var(--muted); }
+.lt-pad { display: grid; grid-template-columns: repeat(9, minmax(0, 1fr)); gap: .375rem; max-width: 30rem; }
+.lt-num { aspect-ratio: 1; border: 1px solid var(--line-2); border-radius: 50%; background: var(--surface); color: var(--ink); font-weight: 700; font-size: .8125rem; cursor: pointer; }
+.lt-num.on { color: #fff; border-color: transparent; }
+.lt-queue, .lt-mine { list-style: none; padding: 0; margin: .75rem 0; display: grid; gap: .5rem; }
+.lt-queue li, .lt-mine li { display: flex; align-items: center; gap: .75rem; flex-wrap: wrap; padding: .5rem 0; border-bottom: 1px solid var(--line); }
+.lt-tag { min-width: 3.25rem; font-size: .8125rem; font-weight: 700; color: var(--muted); }
+.lt-state { margin-left: auto; font-size: .8125rem; font-weight: 700; color: var(--muted); }
+.lt-state.win { color: var(--seal); }
+@media (max-width: 480px) { .lt-pad { grid-template-columns: repeat(7, minmax(0, 1fr)); } }
+/* 놀이: 즉석 복권 */
+.sc-table { display: flex; flex-wrap: wrap; gap: .5rem 1rem; margin-bottom: 1.25rem; font-size: .8125rem; color: var(--muted); }
+.sc-table span { display: inline-flex; gap: .375rem; align-items: center; } .sc-table b { font-size: 1rem; letter-spacing: .1em; }
+.sc-stage { display: grid; justify-items: center; gap: .5rem; margin: 1rem 0 2rem; }
+.btn.big { padding: .875rem 1.75rem; font-size: 1rem; }
+.sc-card { position: relative; width: min(100%, 22rem); height: 10rem; border-radius: var(--r-lg); border: 2px solid var(--ink); background: var(--surface); overflow: hidden; }
+.sc-under { position: absolute; inset: 0; display: grid; place-items: center; align-content: center; gap: .25rem; }
+.sc-syms { display: flex; gap: 1rem; font-size: 2.75rem; }
+.sc-prize { font-size: 1.125rem; }
+.sc-card canvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; cursor: grab; }
+.sc-mini { letter-spacing: .15em; }
+@media (max-width: 560px) { .lt-bal { text-align: left; } }
