@@ -1878,4 +1878,21 @@ div.gl:hover { border-color: var(--line); }
 .rd-btn { font-size: 1.1875rem; padding: .9rem 1rem; justify-content: center; }
 @media (max-width: 680px) { .rd h1 { font-size: 1.625rem; } .rd-xl h1 { font-size: 1.875rem; } .rd-nav { bottom: calc(4.25rem + env(safe-area-inset-bottom, 0px)); } }
 .su-name .su-email { font-size: .75rem; padding-top: .25rem; padding-bottom: .25rem; color: var(--muted); }
-.su-name .warn-text { color: var(--danger, #B4442F); }
+.su-name .warn-text { color: var(--seal); }
+/* 내 계정 버튼 — 이름 전체 (너무 길면 …) */
+.user-menu summary .um-name { display: block; max-width: 7.5em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* 기사 아래 기자 소개 */
+.art-writers { display: grid; gap: .75rem; margin: 1.5rem 0 0; }
+.aw-card { display: flex; gap: .875rem; align-items: flex-start; padding: 1rem 1.125rem; border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--surface); }
+.aw-avatar { width: 2.75rem; height: 2.75rem; border-radius: 50%; background: var(--ink); color: var(--bg); display: grid; place-items: center; font-weight: 700; font-size: .875rem; flex: none; }
+.aw-body { min-width: 0; flex: 1; }
+.aw-name { display: flex; flex-wrap: wrap; align-items: center; gap: .375rem; font-size: .9375rem; }
+.aw-name b { font-weight: 700; }
+.aw-role { font-size: .6875rem; font-weight: 600; padding: .125rem .5rem; border-radius: 999px; background: var(--ink); color: var(--bg); }
+.aw-role.ghost { background: transparent; color: var(--muted); border: 1px solid var(--line-2); }
+.aw-meta { font-size: .8125rem; color: var(--muted); margin-top: .125rem; }
+.aw-recent { list-style: none; margin: .5rem 0 0; padding: 0; display: grid; gap: .25rem; }
+.aw-recent li { font-size: .8125rem; }
+.aw-recent li::before { content: '· '; color: var(--muted); }
+.aw-recent a { color: var(--ink); }
+@media print { .art-writers .aw-recent { display: none; } .aw-card { border-color: #999; } }

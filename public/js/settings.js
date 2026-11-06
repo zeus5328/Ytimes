@@ -27,7 +27,7 @@
     if (!u) return panel('로그인하면 내 정보를 볼 수 있어요', `<p class="set-desc">가족 계정으로 로그인하면 이름과 비밀번호를 바꿀 수 있어요. 화면 설정은 로그인하지 않아도 쓸 수 있습니다.</p>
       <div class="row gap"><a class="btn primary" href="#/login?next=${encodeURIComponent('#/settings/me')}">로그인</a><a class="btn" href="#/settings/display">화면 설정으로</a></div>`);
     const roleLine = (YT.ROLES[u.role] || u.role_label || '').split(' · ');
-    return `<div class="set-profile"><span class="set-avatar" aria-hidden="true">${esc(u.display_name.slice(0, 2))}</span>
+    return `<div class="set-profile"><span class="set-avatar" aria-hidden="true">${esc(YT.initials(u.display_name))}</span>
         <div><b>${esc(u.display_name)}</b><span>${esc(roleLine[0] || '')} · ${esc(u.username)}</span></div>
         <button class="btn small" id="logoutMe">로그아웃</button></div>`
       + panel('이름', `<form class="set-inline" id="nameForm"><label class="grow"><span class="vh">표시 이름</span><input class="input" name="display_name" maxlength="30" value="${esc(u.display_name)}" required></label><button class="btn primary">저장</button></form>`,
@@ -130,7 +130,7 @@
     const count = (r) => users.filter((u) => u.role === r).length;
     return `<div class="glance set-kpis">${kpi('가족 계정', users.length, '명')}${kpi('관리자 · 편집장', count('admin') + ' · ' + count('editor'), '')}${kpi('시니어 · 평 · 수습기자', count('senior') + ' · ' + count('staff') + ' · ' + count('reporter'), '')}${kpi('구독자', count('subscriber'), '명')}</div>`
       + panel('가족 계정', `<ul class="set-users">${users.map((u) => `<li data-u="${u.id}">
-          <span class="set-avatar sm" aria-hidden="true">${esc(u.display_name.slice(0, 2))}</span>
+          <span class="set-avatar sm" aria-hidden="true">${esc(YT.initials(u.display_name))}</span>
           <label class="su-name"><span class="vh">이름</span><input class="input sm" data-f="display_name" value="${esc(u.display_name)}"><input class="input sm su-email" type="email" data-f="username" value="${esc(u.username)}" aria-label="로그인 이메일" autocapitalize="off" spellcheck="false">${u.id === YT.state.user.id ? '<small>나</small>' : (u.username.includes('@') ? '' : '<small class="warn-text">이메일로 바꿔 주세요</small>')}</label>
           <label class="su-role"><span class="vh">권한</span><select class="select sm" data-f="role">${Object.entries(R).map(([k, l]) => `<option value="${k}" ${u.role === k ? 'selected' : ''}>${l.split(' · ')[0]}</option>`).join('')}</select></label>
           <label class="su-tt"><input type="checkbox" data-f="timetable_access" ${u.timetable_access || u.role === 'admin' ? 'checked' : ''} ${u.role === 'admin' ? 'disabled' : ''}> 시간표</label>

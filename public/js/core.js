@@ -4,7 +4,10 @@
   const YT = (window.YT = { pages: {}, state: { user: null, settings: {}, sections: [], categories: [], emojis: [] } });
 
   // ── 유틸
+  // 이름 동그라미: 세 글자 이상 한글 이름은 성을 빼고 두 글자(김신중 → 신중), 그 밖은 앞 두 글자
+  const initials = (n) => { n = String(n || '').trim(); return /^[가-힣]{3,4}$/.test(n) ? n.slice(-2) : n.slice(0, 2); };
   const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  YT.initials = initials;
   const nl2br = (s) => esc(s).replace(/\n/g, '<br>');
   const $ = (sel, root = document) => root.querySelector(sel);
   const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
@@ -303,7 +306,7 @@
           ${u ? `<button class="icon-btn bell" id="bellBtn" aria-label="알림" title="알림">${ICON.bell}<i class="nbadge" id="bellBadge" ${YT.state.unread ? '' : 'hidden'}>${YT.state.unread || ''}</i></button>` : ''}
           <div class="qs-wrap"><button class="icon-btn" id="setBtn" aria-label="화면 설정" title="화면 설정" aria-haspopup="dialog" aria-expanded="false" data-nav="#/settings">${ICON.gear}</button><div class="qs-pop" id="qsPop" role="dialog" aria-label="화면 설정" hidden></div></div>
           ${YT.can('reporter') ? `<a href="#/write" class="btn small primary nav-write" title="새 기사 쓰기">기사 쓰기</a>` : ''}
-          ${u ? `<details class="user-menu"><summary aria-label="내 계정" title="${esc(u.display_name)} · ${esc(u.role_label)}">${esc(u.display_name.slice(0, 2))}</summary><div class="um-pop">
+          ${u ? `<details class="user-menu"><summary aria-label="내 계정" title="${esc(u.display_name)} · ${esc(u.role_label)}"><span class="um-name">${esc(u.display_name)}</span></summary><div class="um-pop">
               <div class="um-head"><b>${esc(u.display_name)}</b><span>${esc(u.role_label)}</span></div>
               ${YT.can('reporter') ? `<a href="#/newsroom">편집실${YT.state.todo ? ` <i class="nbadge-in">${YT.state.todo}</i>` : ''}</a><a href="#/write">새 기사 쓰기</a><hr>` : ''}<a href="#/settings/me">내 정보</a><a href="#/settings/display">화면 설정</a>${YT.can('admin') ? '<a href="#/settings/family">가족 계정</a><a href="#/settings/data">자료 관리</a>' : ''}<a href="#/guide">이용 안내</a><hr>
               <button id="logoutBtn">로그아웃</button></div></details>`

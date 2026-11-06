@@ -42,6 +42,11 @@
           ${canEdit ? `<a class="btn small" href="#/write/${a.id}">수정</a>` : ''}
           <a class="btn small" href="#/print/${esc(a.issue_month)}">${esc(YT.monthLabel(a.issue_month || ''))} 지면 보기</a>
         </div>
+        ${(a.writers || []).length ? `<section class="art-writers" aria-label="기자 소개">${a.writers.map((w) => `<div class="aw-card">
+          <span class="aw-avatar" aria-hidden="true">${esc(YT.initials(w.name))}</span>
+          <div class="aw-body"><div class="aw-name"><b>${esc(w.name)}</b>${w.id ? ' 기자' : ''}${w.role_label ? `<span class="aw-role">${esc(w.role_label)}</span>` : ''}${a.writers.length > 1 ? `<span class="aw-role ghost">${w.lead ? '대표 기자' : '함께 쓴 기자'}</span>` : ''}</div>
+            <div class="aw-meta">${w.count ? `지금까지 기사 ${w.count}편 발행` : '첫 기사를 준비하고 있어요'}${w.since ? ` · ${esc(YT.monthLabel(w.since.slice(0, 7)))}부터 활동` : ''}</div>
+            ${w.recent.length ? `<ul class="aw-recent">${w.recent.map((r) => `<li><a href="#/article/${r.id}">${esc(r.title)}</a></li>`).join('')}</ul>` : ''}</div></div>`).join('')}</section>` : ''}
         ${a.status === 'published' ? `
         <section class="reactions" aria-label="응원 반응">
           <div class="rx-label">이 기사에 마음 남기기</div>

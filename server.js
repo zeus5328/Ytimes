@@ -349,7 +349,7 @@ function articleOut(a, user, full = true) {
     photo_count: blocks.filter(b => b.type === 'photo').length + (a.photo ? 1 : 0),
     chars: text.replace(/\s/g, '').length, has_audio: blocks.some((b) => b.type === 'audio'),
   };
-  if (full) o.blocks = blocks;
+  if (full) { o.blocks = blocks; o.writers = articleWriters(a); }
   const co = coIds(a).map((id) => ({ id, name: (get('SELECT display_name FROM users WHERE id=?', id) || {}).display_name })).filter((c) => c.name);
   o.coauthors = co; o.lead_author = o.author_name;
   try { o.place = a.place ? JSON.parse(a.place) : null; } catch { o.place = null; }
@@ -359,6 +359,24 @@ function articleOut(a, user, full = true) {
   o.comment_count = get('SELECT COUNT(*) c FROM comments WHERE article_id=? AND deleted=0', a.id).c;
   o.views = a.views || 0;
   return o;
+}
+// 기사 아래 '기자 소개' — 대표 기자와 함께 쓴 기자, 각자 발행한 기사 수와 최근 기사
+function articleWriters(a) {
+  const pub = all("SELECT id, title, author_id, coauthors, published_at FROM articles WHERE deleted=0 AND status='published' ORDER BY published_at DESC");
+  const ids = [a.author_id, ...coIds(a)].filter(Boolean);
+  const out = [];
+  for (const id of [...new Set(ids)]) {
+    const u = get('SELECT id, display_name, role, created FROM users WHERE id=?', id); if (!u) continue;
+    const mine = pub.filter((x) => x.author_id === id || coIds(x).includes(id));
+    out.push({ id, name: u.display_name, role_label: ROLE_LABEL[u.role] || '', lead: id === a.author_id, count: mine.length,
+      since: u.created, recent: mine.filter((x) => x.id !== a.id).slice(0, 3).map((x) => ({ id: x.id, title: x.title })) });
+  }
+  if (!out.length) { // 예전 자료처럼 기자 계정이 없는 기사는 편집국 이름으로
+    const name = a.author_name || '유니 타임즈';
+    const mine = pub.filter((x) => !x.author_id);
+    out.push({ id: null, name, role_label: '편집국', lead: true, count: mine.length, since: '', recent: mine.filter((x) => x.id !== a.id).slice(0, 3).map((x) => ({ id: x.id, title: x.title })) });
+  }
+  return out;
 }
 function canSeeArticle(a, user) {
   if (a.deleted) return isRole(user, 'editor');
