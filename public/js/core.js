@@ -107,6 +107,20 @@
       if (v <= cut) { push(x + 1, y); push(x - 1, y); push(x, y + 1); push(x, y - 1); } }
     ctx.putImageData(im, 0, 0); return c.toDataURL('image/png');
   };
+  // 원형으로 다듬기 — 검은(또는 투명한) 바탕 위의 그림 테두리를 찾아 동그랗게 잘라내고, 원 바깥은 투명하게
+  YT.roundCrop = (img, cut = 42) => {
+    const w = img.naturalWidth || img.width, h = img.naturalHeight || img.height;
+    const c = document.createElement('canvas'); c.width = w; c.height = h; const ctx = c.getContext('2d'); ctx.drawImage(img, 0, 0);
+    const d = ctx.getImageData(0, 0, w, h).data; let x0 = w, y0 = h, x1 = -1, y1 = -1;
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) { const i = (y * w + x) * 4; if (d[i + 3] > 24 && Math.max(d[i], d[i + 1], d[i + 2]) > cut) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; } }
+    if (x1 < 0) { x0 = 0; y0 = 0; x1 = w - 1; y1 = h - 1; }
+    const cx = (x0 + x1 + 1) / 2, cy = (y0 + y1 + 1) / 2, r = Math.max(x1 - x0 + 1, y1 - y0 + 1) / 2;
+    const size = Math.max(2, Math.round(r * 2)); const o = document.createElement('canvas'); o.width = size; o.height = size; const octx = o.getContext('2d');
+    octx.drawImage(c, cx - r, cy - r, r * 2, r * 2, 0, 0, size, size);
+    const im = octx.getImageData(0, 0, size, size); const q = im.data; const R = size / 2;
+    for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) { const dist = Math.hypot(x + 0.5 - R, y + 0.5 - R); const a = Math.max(0, Math.min(1, R - dist)); const i = (y * size + x) * 4 + 3; q[i] = Math.round(q[i] * a); }
+    octx.putImageData(im, 0, 0); return { data: o.toDataURL('image/png'), size };
+  };
   // 목록·카드용 작은 사진 (긴 변 640px)
   YT.makeThumb = (img, side = 640) => {
     const s = Math.min(1, side / Math.max(img.width || img.naturalWidth, img.height || img.naturalHeight));
