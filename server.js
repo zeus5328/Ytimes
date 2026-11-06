@@ -85,10 +85,11 @@ const uid = () => crypto.randomUUID();
 // 계정 7가지: 방문자(로그인 안 함) · 구독자 · 수습기자 · 평기자 · 시니어기자 · 편집장 · 관리자 (예전 '가족독자'는 구독자로 합침)
 const ROLE_RANK = { subscriber: 2, reporter: 3, staff: 4, senior: 5, editor: 6, admin: 7 };
 const ROLE_LABEL = { subscriber: '구독자', reporter: '수습기자', staff: '평기자', senior: '시니어기자', editor: '편집장', admin: '관리자' };
-const SECTIONS = ['헤드라인', '편집장의 말', '일반 기사', '인(人)터뷰', '포토제닉', '우리 집 날씨', '그림 일기', '관찰 일기', '우리 집 단신', '칭찬 릴레이'];
+const SECTIONS = ['헤드라인', '편집장의 말', '일반 기사', '인(人)터뷰', '찰칵! 이 순간', '우리 집 날씨', '그림 일기', '관찰 일기', '우리 집 단신', '칭찬 릴레이'];
 const CATEGORIES = ['일상', '여행', '성장', '학교', '친구', '기념일', '명절·행사', '요리', '놀이·취미', '책·영화', '운동', '건강', '반려동물'];
 // 예전 분류 이름 → 새 이름 (기사를 저장하거나 백업을 되돌릴 때도 맞춰 줌)
 const CATEGORY_RENAME = { 병원: '건강', 동물: '반려동물' };
+const SECTION_RENAME = { 포토제닉: '찰칵! 이 순간' };
 const EMOJIS = ['❤️', '👏', '😂', '🥹', '🎉'];
 
 class HttpError extends Error { constructor(status, msg) { super(msg); this.status = status; } }
@@ -711,6 +712,7 @@ route('POST', '/api/restore', 'admin', ({ body }) => {
       counts[t] = data[t].length;
     }
     for (const [from, to] of Object.entries(CATEGORY_RENAME)) run('UPDATE articles SET category=? WHERE category=?', to, from); // 예전 분류 이름 맞추기
+    for (const [from, to] of Object.entries(SECTION_RENAME)) run('UPDATE articles SET section=? WHERE section=?', to, from);
     db.exec('COMMIT');
     // 전체 백업(사진·소리 포함)이면 파일도 되살린다
     if (data.files && typeof data.files === 'object') counts.files = restoreFiles(data.files);
@@ -798,7 +800,7 @@ function articleFields(body) {
   return {
     title, blocks: JSON.stringify(blocks),
     category: CATEGORIES.includes(CATEGORY_RENAME[body.category] || body.category) ? (CATEGORY_RENAME[body.category] || body.category) : '일상',
-    section: SECTIONS.includes(body.section) ? body.section : '일반 기사',
+    section: SECTIONS.includes(SECTION_RENAME[body.section] || body.section) ? (SECTION_RENAME[body.section] || body.section) : '일반 기사',
     issue_month: /^\d{4}-\d{2}$/.test(body.issue_month || '') ? body.issue_month : now().slice(0, 7),
     hashtags: tagStr(body.hashtags), photo: body.photo ? str(body.photo, 60) : null, photo_caption: str(body.photo_caption, 300),
     place: placeStr(body.place),
@@ -1650,7 +1652,7 @@ if (getSetting('coupons_seeded', '') !== '1') { // 처음 한 번만 예시 쿠�
     run('INSERT INTO coupons(id,title,description,price,stock,per_user,icon,active,sort,created) VALUES(?,?,?,?,?,?,?,?,?,?)', uid(), t, d, p, -1, 0, ic, 1, i, now()));
 }
 const CARD_DAILY = 5;
-const BONUS_SECTIONS = ['인(人)터뷰', '포토제닉']; // 손이 많이 가는 코너는 원고료를 더
+const BONUS_SECTIONS = ['인(人)터뷰', '찰칵! 이 순간']; // 손이 많이 가는 코너는 원고료를 더
 // 댓글·오늘의 한마디 포인트 — 하루에 받을 수 있는 횟수 (댓글 5번, 한마디 1번)
 const TALK_DAILY = { comment: 5, note: 1 };
 function talkPoints(user, kind, ref, reason, cap) {
@@ -1819,6 +1821,10 @@ route('PUT', '/api/points/monthly', 'admin', ({ body }) => {
 });
 
 // 분류 이름 바꾸기 — 한 번만 (병원 → 건강, 동물 → 반려동물)
+if (getSetting('sections_v2', '') !== '1') { // 포토제닉 → 찰칵! 이 순간
+  for (const [from, to] of Object.entries(SECTION_RENAME)) run('UPDATE articles SET section=? WHERE section=?', to, from);
+  setSetting('sections_v2', '1');
+}
 if (getSetting('categories_v2', '') !== '1') {
   for (const [from, to] of Object.entries(CATEGORY_RENAME)) run('UPDATE articles SET category=? WHERE category=?', to, from);
   setSetting('categories_v2', '1');

@@ -97,7 +97,7 @@
     const lead = arts.find((a) => a.section === '헤드라인') || arts.find((a) => a.photo) || arts[0];
     const editorCol = arts.find((a) => a !== lead && a.section === '편집장의 말'); // 편집장의 말은 지면 첫머리에
     const rest = arts.filter((a) => a !== lead && a !== editorCol);
-    const photoPick = rest.find((a) => a.section === '포토제닉' && a.photo);
+    const photoPick = rest.find((a) => a.section === '찰칵! 이 순간' && a.photo);
     const weather = rest.find((a) => a.section === '우리 집 날씨');
     const others = rest.filter((a) => a !== photoPick && a !== weather);
     const long = others.filter((a) => a.photo || textOf(a).length >= 220);
@@ -220,7 +220,7 @@
     const arts = all.filter((a) => (a.issue_month || '').startsWith(y)).sort((a, b) => (a.issue_month + (a.published_at || '')).localeCompare(b.issue_month + (b.published_at || '')));
     const months = [...new Set(arts.map((a) => a.issue_month))];
     const photos = arts.reduce((n, a) => n + (a.photo ? 1 : 0) + (a.blocks || []).filter((b) => b.type === 'photo').length, 0);
-    const cover = arts.find((a) => a.section === '포토제닉' && a.photo) || arts.find((a) => a.photo);
+    const cover = arts.find((a) => a.section === '찰칵! 이 순간' && a.photo) || arts.find((a) => a.photo);
     // 연말 시상식 — 기자별 기록으로 상을 정하고, ‘올해의 기사’는 가족 투표로
     const [rs, pollsR] = await Promise.all([YT.api('/api/reporter-stats?year=' + y).catch(() => ({ stats: [], top: [] })), YT.api('/api/polls').catch(() => ({ polls: [] }))]);
     const best = (k) => { const l = rs.stats.filter((x) => x[k] > 0).sort((p, q) => q[k] - p[k]); return l.length ? l[0] : null; };

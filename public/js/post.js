@@ -56,9 +56,9 @@
     const st = { ...c };
     view.innerHTML = YT.pageHead('', '마음을 담아 카드를 써보세요', '', '<a class="btn" href="#/post">우체국 목록</a>')
       + `<div class="post-editor"><form class="form" id="cardForm">
-        <label class="block">카드 종류<div class="seg-btns" id="typeBtns">${Object.entries(TYPES).map(([k, t]) => `<button type="button" class="chip ${st.type === k ? 'on' : ''}" data-type="${k}">${t.name}</button>`).join('')}</div></label>
-        <label class="block">디자인 선택<div class="seg-btns" id="designBtns"></div></label>
-        <label class="block">색상 선택<div class="seg-btns" id="colorBtns">${Object.entries(COLORS).map(([k, l]) => `<button type="button" class="chip sw sw-${k} ${st.color === k ? 'on' : ''}" data-color="${k}">${l}</button>`).join('')}</div></label>
+        <div class="block" role="group" aria-labelledby="lblType"><span id="lblType">카드 종류</span><div class="seg-btns" id="typeBtns">${Object.entries(TYPES).map(([k, t]) => `<button type="button" class="chip ${st.type === k ? 'on' : ''}" data-type="${k}" aria-pressed="${st.type === k}">${t.name}</button>`).join('')}</div></div>
+        <div class="block" role="group" aria-labelledby="lblDesign"><span id="lblDesign">디자인 선택</span><div class="seg-btns" id="designBtns"></div></div>
+        <div class="block" role="group" aria-labelledby="lblColor"><span id="lblColor">색상 선택</span><div class="seg-btns" id="colorBtns">${Object.entries(COLORS).map(([k, l]) => `<button type="button" class="chip sw sw-${k} ${st.color === k ? 'on' : ''}" data-color="${k}">${l}</button>`).join('')}</div></div>
         <div class="form-row"><label>받는 사람<input class="input" name="to_name" maxlength="30" value="${esc(st.to_name)}" placeholder="엄마"></label>
           <label>보내는 사람<input class="input" name="from_name" maxlength="30" value="${esc(st.from_name)}"></label>
           <label>카드 날짜<input type="date" class="input" name="card_date" value="${esc(st.card_date)}"></label></div>
@@ -92,10 +92,10 @@
         const prev = TYPES[st.type]; st.type = b.dataset.type; const T = TYPES[st.type];
         if (!st.title || st.title === prev.title) { st.title = T.title; f.title.value = T.title; }
         if (!st.message || st.message === prev.msg) { st.message = T.msg; f.message.value = T.msg; }
-        YT.$$('#typeBtns .chip').forEach((x) => x.classList.toggle('on', x === b));
+        YT.$$('#typeBtns .chip').forEach((x) => { x.classList.toggle('on', x === b); x.setAttribute('aria-pressed', x === b); });
       }
       if (b.dataset.design) st.design = +b.dataset.design;
-      if (b.dataset.color) { st.color = b.dataset.color; YT.$$('#colorBtns .chip').forEach((x) => x.classList.toggle('on', x === b)); }
+      if (b.dataset.color) { st.color = b.dataset.color; YT.$$('#colorBtns .chip').forEach((x) => { x.classList.toggle('on', x === b); x.setAttribute('aria-pressed', x === b); }); }
       paint();
     };
     const capSync = () => { const on = YT.$('#capOn').checked; YT.$('#capBox').hidden = !on; if (!on) { st.open_on = ''; f.open_on.value = ''; } else if (!f.open_on.value) { st.open_on = f.open_on.value = YT.addDays(YT.today(), 365); } f.querySelector('button.primary').textContent = on ? '봉인하고 저장' : '카드 저장'; };

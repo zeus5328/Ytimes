@@ -18,7 +18,7 @@
       const bal = data.balance;
       box.innerHTML = `<div class="pt-hero">
           <div><span class="pt-k">내 포인트</span><b class="pt-bal">${P(bal)}<small>P</small></b>
-            <span class="pt-sub">지금까지 받은 포인트 ${P(data.earned)}P · 기사 한 편이 신문에 실리면 <b>${P(data.rate.lead)}P</b>${data.rate.co ? `, 함께 쓴 기자는 <b>${P(data.rate.co)}P</b>` : ''}${data.rate.bonus ? ` (인(人)터뷰·포토제닉은 <b>+${P(data.rate.bonus)}P</b>)` : ''}${data.rate.bday ? ` · 생일에는 <b>${P(data.rate.bday)}P</b> 선물` : ''}${data.rate.card ? ` · 우체국에서 편지·카드를 보내면 <b>${P(data.rate.card)}P</b>` : ''}${data.rate.talk ? ` · 댓글·오늘의 한마디는 <b>${P(data.rate.talk)}P</b>` : ''}</span></div>
+            <span class="pt-sub">지금까지 받은 포인트 ${P(data.earned)}P · 기사 한 편이 신문에 실리면 <b>${P(data.rate.lead)}P</b>${data.rate.co ? `, 함께 쓴 기자는 <b>${P(data.rate.co)}P</b>` : ''}${data.rate.bonus ? ` (인(人)터뷰·찰칵! 이 순간은 <b>+${P(data.rate.bonus)}P</b>)` : ''}${data.rate.bday ? ` · 생일에는 <b>${P(data.rate.bday)}P</b> 선물` : ''}${data.rate.card ? ` · 우체국에서 편지·카드를 보내면 <b>${P(data.rate.card)}P</b>` : ''}${data.rate.talk ? ` · 댓글·오늘의 한마디는 <b>${P(data.rate.talk)}P</b>` : ''}</span></div>
           <a class="btn primary" href="#/write">기사 쓰고 원고료 받기</a></div>
         ${issued.length ? `<section class="pt-sec"><div class="side-head"><h2>내 쿠폰</h2><span class="muted small">부모님께 보여 주고 쓰면, 부모님이 ‘사용 완료’를 눌러 줘요</span></div>
           <div class="cp-list">${issued.map((x) => ticket(x, { cls: 'mine', meta: `쿠폰 번호 <code>${esc(x.code)}</code> · ${dt(x.created)} 구입`,
@@ -73,7 +73,7 @@
           <label>생일 축하 포인트<input class="input" name="bday" inputmode="numeric" value="${d.rate.bday}"></label>
           <label>편지·카드 한 장<input class="input" name="card" inputmode="numeric" value="${d.rate.card}"></label>
           <label>댓글 · 오늘의 한마디<input class="input" name="talk" inputmode="numeric" value="${d.rate.talk}"></label>
-          <label>인(人)터뷰·포토제닉 더 주기<input class="input" name="bonus" inputmode="numeric" value="${d.rate.bonus}"></label><button class="btn">저장</button></form>
+          <label>인(人)터뷰·찰칵! 이 순간 더 주기<input class="input" name="bonus" inputmode="numeric" value="${d.rate.bonus}"></label><button class="btn">저장</button></form>
         <p class="muted small">원고료는 기사가 <b>처음 신문에 실릴 때</b> 한 번만 들어가요. 내렸다가 다시 실어도 또 주지 않아요.</p>
       </section>
       <section class="pt-sec"><div class="side-head"><h2>생일 축하 포인트</h2><span class="muted small">생일날 사이트에 들어오면 ${P(d.rate.bday)}P가 한 번 들어가요 (생일 뒤 30일 안에 들어와도 받아요)</span></div>
