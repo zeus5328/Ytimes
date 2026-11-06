@@ -1307,6 +1307,7 @@ route('GET', '/api/people/:name', null, ({ params, user }) => {
   const name = decodeURIComponent(params.name);
   const like = `%#${name}%`;
   const profile = get('SELECT * FROM people WHERE name=?', name) || { name };
+  if (!isRole(user, 'subscriber')) delete profile.facetime; // 페이스타임 연락처는 로그인한 가족에게만
   const evs = all('SELECT * FROM events WHERE deleted=0 AND (hashtags LIKE ? OR title LIKE ?)', like, `%${name}%`)
     .filter(e => tags(e.hashtags).includes(name) || e.title.includes(name)).map(e => publicEvent(e));
   const y = new Date().getFullYear();
@@ -1325,11 +1326,13 @@ route('PUT', '/api/people/:name', 'staff', ({ params, body }) => {
   const rel = (k) => { const v = pick(k, 30); return v === name ? '' : v; };
   const photo = 'photo' in body ? (body.photo ? str(body.photo, 60) : null) : (cur.photo || null);
   const spouse = rel('spouse');
+  if ('facetime' in body) { const ft = ftContact(body.facetime); if (ft === null) fail(400, '페이스타임 연락처는 전화번호나 이메일 주소로 적어 주세요.'); }
   run(`INSERT INTO people(name,relation,family_group,bio,photo,emoji,father,mother,spouse,updated) VALUES(?,?,?,?,?,?,?,?,?,?)
     ON CONFLICT(name) DO UPDATE SET relation=excluded.relation, family_group=excluded.family_group, bio=excluded.bio, photo=excluded.photo, emoji=excluded.emoji,
     father=excluded.father, mother=excluded.mother, spouse=excluded.spouse, updated=excluded.updated`,
     name, pick('relation', 30), pick('family_group', 30), pick('bio', 1000), photo, pick('emoji', 8), rel('father'), rel('mother'), spouse, now());
   // 배우자는 서로 이어 준다 (예전 배우자 연결은 풀기)
+  if ('facetime' in body) run('UPDATE people SET facetime=? WHERE name=?', ftContact(body.facetime) || '', name);
   if ('spouse' in body) {
     if (cur.spouse && cur.spouse !== spouse) run("UPDATE people SET spouse='' WHERE name=? AND spouse=?", cur.spouse, name);
     if (spouse) {
@@ -1567,7 +1570,7 @@ function calendarIcs() {
 // 예전 '가족독자' 계정은 구독자로 (구독자가 가족독자의 일을 모두 이어받음)
 run("UPDATE users SET role='subscriber' WHERE role='reader' OR role NOT IN ('subscriber','reporter','staff','senior','editor','admin')");
 // ───────────────────────── 목소리·소리 파일, 친척용 열람 링크, 가족만 보기
-for (const c of ['father', 'mother', 'spouse']) if (!all('PRAGMA table_info(people)').some((x) => x.name === c)) db.exec(`ALTER TABLE people ADD COLUMN ${c} TEXT DEFAULT ''`);
+for (const c of ['father', 'mother', 'spouse', 'facetime']) if (!all('PRAGMA table_info(people)').some((x) => x.name === c)) db.exec(`ALTER TABLE people ADD COLUMN ${c} TEXT DEFAULT ''`);
 db.exec(`CREATE TABLE IF NOT EXISTS audios (id TEXT PRIMARY KEY, file TEXT NOT NULL, mime TEXT NOT NULL, owner_id TEXT, duration REAL DEFAULT 0, size INTEGER DEFAULT 0, created TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS share_links (token TEXT PRIMARY KEY, month TEXT NOT NULL, label TEXT DEFAULT '', expires TEXT NOT NULL, created_by TEXT, created_name TEXT DEFAULT '',
   created TEXT NOT NULL, revoked INTEGER DEFAULT 0, views INTEGER DEFAULT 0, last_view TEXT DEFAULT '');`);
@@ -1894,6 +1897,27 @@ route('GET', '/api/places/search', 'reporter', async ({ query }) => {
   if (!kakaoKey()) return { provider: 'none', places: [] };
   try { return { provider: 'kakao', ...(await kakaoSearch(q, query.lat ? { lat: Number(query.lat), lng: Number(query.lng) } : null)) }; }
   catch (e) { return { provider: 'kakao', places: [], error: e.name === 'AbortError' ? '카카오 검색이 너무 늦어요' : e.message }; }
+});
+
+// 페이스타임 — 가족마다 연락처(전화번호·애플 ID 이메일)와 가족 영상통화방 링크. 로그인한 가족에게만 보여 준다
+function ftContact(v) {
+  const t = String(v || '').trim(); if (!t) return '';
+  if (/^[^\s@]{1,64}@[^\s@]{1,190}\.[^\s@]{2,}$/.test(t)) return t.slice(0, 120);
+  const d = t.replace(/[\s\-().]/g, ''); if (/^\+?\d{8,15}$/.test(d)) return d;
+  return null;
+}
+const ftRoom = () => (get('SELECT value FROM secrets WHERE key=?', 'facetime_room') || {}).value || '';
+route('GET', '/api/facetime', 'subscriber', () => ({
+  room: ftRoom(), room_note: (get('SELECT value FROM secrets WHERE key=?', 'facetime_room_note') || {}).value || '',
+  contacts: Object.fromEntries(all("SELECT name, facetime FROM people WHERE facetime IS NOT NULL AND facetime <> ''").map((r) => [r.name, r.facetime])),
+}));
+route('PUT', '/api/facetime/room', 'editor', ({ body }) => {
+  const url = String(body.url || '').trim(); const note = str(body.note, 60);
+  if (url && !/^https:\/\/facetime\.apple\.com\/join#\S{5,300}$/.test(url)) fail(400, '페이스타임 앱의 ‘링크 공유’로 만든 https://facetime.apple.com/join#… 주소를 그대로 붙여 넣어 주세요.');
+  for (const [k, v] of [['facetime_room', url], ['facetime_room_note', note]]) {
+    if (v) run('INSERT INTO secrets(key,value) VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value', k, v); else run('DELETE FROM secrets WHERE key=?', k);
+  }
+  return { ok: true, room: ftRoom() };
 });
 
 // ───────────────────────── 착한 일 — 아이가 한 일을 올리면 부모님(시니어기자 이상)이 확인하고 포인트를 준다

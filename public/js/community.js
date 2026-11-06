@@ -172,9 +172,11 @@
 
   // ── 가족 광장 페이지
   YT.addRoute('/board', async (view) => {
-    const [{ polls }, { notes }] = await Promise.all([YT.api('/api/polls'), YT.api('/api/notes?limit=100')]);
+    const [{ polls }, { notes }, ft] = await Promise.all([YT.api('/api/polls'), YT.api('/api/notes?limit=100'), YT.facetime(true)]);
     view.innerHTML = YT.pageHead('', '가족 광장', '가족에게 물어보고, 오늘 기분을 한 줄로 남기는 곳이에요.',
       YT.can('subscriber') ? '<button class="btn primary" id="newPoll">가족에게 물어보기</button>' : '')
+      + (YT.ftRoomBand(ft) || (YT.can('editor') ? '<section class="ft-room empty"><span class="ft-ic" aria-hidden="true">📹</span><div class="grow"><b>가족 영상통화방</b><small>페이스타임 링크를 붙여 두면 가족 누구나 한 번에 영상통화방으로 들어와요.</small></div><button class="btn small" id="ftRoomSet">만들기</button></section>' : ''))
+      + (ft.room && YT.can('editor') ? '<p class="right small"><button class="linklike" id="ftRoomSet">영상통화방 링크 바꾸기</button></p>' : '')
       + `<div class="board">
         <section><div class="side-head"><h2>가족 투표</h2><span>${polls.length}개</span></div><div id="pollList" class="poll-list"></div></section>
         <section><div class="side-head"><h2>오늘의 한마디</h2></div>${YT.noteForm()}<ul class="note-list" id="noteList"></ul>
@@ -188,5 +190,16 @@
     mw();
     YT.bindNotes(view, async () => { drawNotes((await YT.api('/api/notes?limit=100')).notes); mw(); });
     const np = YT.$('#newPoll'); if (np) np.onclick = () => YT.openPollForm(() => YT.route());
+    const fr = YT.$('#ftRoomSet'); if (fr) fr.onclick = () => {
+      const m = YT.modal(`<h2 class="modal-title">📹 가족 영상통화방</h2><ol class="set-list">
+          <li>아이폰(또는 맥)의 <b>페이스타임</b> 앱을 열고 <b>링크 생성</b>(링크 만들기)을 눌러요.</li>
+          <li><b>링크 복사</b>를 눌러 아래 칸에 붙여 넣어요. (https://facetime.apple.com/join#… 모양)</li>
+          <li>가족이 ‘들어가기’를 누르면 같은 통화방으로 모여요. 링크를 만든 사람이 들어온 사람을 <b>허락</b>해야 통화가 시작돼요.</li></ol>
+        <form class="form" id="ftForm"><label>페이스타임 링크<input class="input" name="url" value="${esc(ft.room || '')}" placeholder="https://facetime.apple.com/join#v=1&p=…" autocomplete="off"></label>
+          <label>한 줄 안내 (선택)<input class="input" name="note" maxlength="60" value="${esc(ft.room_note || '')}" placeholder="예: 일요일 저녁 8시 가족 통화"></label>
+          <p class="muted small">링크는 로그인한 가족에게만 보여요. 비우고 저장하면 통화방이 사라져요.</p>
+          <div class="row gap end"><button type="button" class="btn" data-close>취소</button><button class="btn primary">저장</button></div></form>`);
+      m.el.querySelector('#ftForm').onsubmit = async (e) => { e.preventDefault(); try { await YT.put('/api/facetime/room', Object.fromEntries(new FormData(e.target))); m.close(); YT.toast('저장했어요.'); YT.clearCache(); YT.route(); } catch (err) { YT.err(err); } };
+    };
   });
 })();

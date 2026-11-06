@@ -31,14 +31,18 @@
 
   const ddayText = (today, d) => (d === today ? '오늘' : 'D-' + YT.dayDiff(today, d));
 
-  function celebrateToday(todays) {
+  function celebrateToday(todays, ft) {
     if (!todays.length) return '';
     const first = todays[0];
+    // 오늘 주인공에게 바로 페이스타임 (가족 앨범에 연락처가 있으면)
+    const contacts = (ft && ft.contacts) || {};
+    const calls = [...new Set(todays.flatMap((o) => Object.keys(contacts).filter((n) => o.title.includes(n))))];
     const to = YT.tags(first.hashtags).find((t) => first.title.includes(t)) || '';
     return `<section class="celebrate" aria-label="오늘의 축하">
       <div class="cel-body"><span class="cel-label">오늘은</span>
         ${todays.map((o) => `<span class="cel-item"><b>${esc(o.title)}</b>${o.age ? ` <small>${o.age}세</small>` : ''}${o.anniversary_years ? ` <small>${o.anniversary_years}주년</small>` : ''}</span>`).join('')}</div>
-      <a class="btn small light" href="#/post/write?type=${first.kind === 'birthday' ? 'birthday' : first.kind === 'anniversary' ? 'anniversary' : 'letter'}&to=${encodeURIComponent(to)}">축하 카드 쓰기</a>
+      <div class="cel-acts">${calls.map((n) => YT.ftButton(n, contacts[n], 'small light').replace('📹 페이스타임', `📹 ${esc(n)}에게 페이스타임`)).join('')}
+      <a class="btn small light" href="#/post/write?type=${first.kind === 'birthday' ? 'birthday' : first.kind === 'anniversary' ? 'anniversary' : 'letter'}&to=${encodeURIComponent(to)}">축하 카드 쓰기</a></div>
     </section>`;
   }
 
@@ -66,6 +70,7 @@
       YT.api('/api/polls').catch(() => ({ polls: [] })),
       YT.api('/api/notes?limit=6').catch(() => ({ notes: [] })),
     ]);
+    const ft = YT.state.user ? await YT.facetime() : null;
     const choreR = YT.can('subscriber') ? await YT.api('/api/items?kind=chore').catch(() => ({ items: [], assign: {} })) : { items: [], assign: {} };
     const chores = choreR.items.slice(0, 5);
     const special = occ.filter((o) => o.kind !== 'event');
@@ -96,7 +101,8 @@
       [`${Number(ym.slice(5))}월호 기사`, articles.filter((a) => (a.issue_month || (a.published_at || a.updated || '').slice(0, 7)) === ym).length, '편', '#/print'],
     ];
     view.innerHTML = `
-      ${celebrateToday(todays)}
+      ${celebrateToday(todays, ft)}
+      ${YT.ftRoomBand(ft)}
       ${YT.prefs().glance ? `<nav class="glance" aria-label="한눈에 보기">${glance.map(([l, n, u, h]) => `<a class="gl" href="${h}"><span>${esc(l)}</span><b>${n}<small>${u}</small></b></a>`).join('')}</nav>` : ''}
       <div class="front">
         ${topStory(top)}

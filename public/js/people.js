@@ -92,7 +92,7 @@
         ${(() => { const link = (n) => `<a href="#/people/${encodeURIComponent(n)}">${esc(n)}</a>`; const kids = people.filter((x) => x.father === name || x.mother === name).map((x) => x.name);
           const bits = [p.father && `아버지 ${link(p.father)}`, p.mother && `어머니 ${link(p.mother)}`, p.spouse && `배우자 ${link(p.spouse)}`, kids.length && `자녀 ${kids.map(link).join(', ')}`].filter(Boolean);
           return bits.length ? `<p class="p-fam">${bits.join(' · ')} · <a href="#/family-tree">가계도 보기</a></p>` : ''; })()}</div>
-        ${YT.can('staff') ? '<button class="btn" id="editP">프로필 편집</button>' : ''}
+        <div class="p-acts">${!isGroup && p.facetime ? YT.ftButton(name, p.facetime, '') : ''}${YT.can('staff') ? '<button class="btn" id="editP">프로필 편집</button>' : ''}</div>
       </div>
       <div class="person-grid">
         <section><div class="side-head"><h2>${isGroup ? '그룹 일정' : '생일·기념일'}</h2><a href="#/calendar">캘린더 ↗</a></div>
@@ -122,6 +122,7 @@
           <label>어머니<input class="input" name="mother" list="relNames" maxlength="30" value="${esc(p.mother || '')}"></label>
           <label>배우자<input class="input" name="spouse" list="relNames" maxlength="30" value="${esc(p.spouse || '')}"></label></div>
           <datalist id="relNames">${people.filter((x) => !x.is_group && x.name !== name).map((x) => `<option value="${esc(x.name)}">`).join('')}</datalist></fieldset>
+        <label class="block">📹 페이스타임 연락처 <small class="muted">— 전화번호 또는 애플 ID 이메일 · 로그인한 가족에게만 보여요</small><input class="input" name="facetime" maxlength="120" value="${esc(p.facetime || '')}" placeholder="010-1234-5678 또는 name@icloud.com" autocomplete="off"></label>
         <label class="block">한 줄 소개<textarea class="input" name="bio" rows="3" maxlength="1000" placeholder="좋아하는 것, 요즘 빠져 있는 것">${esc(p.bio || '')}</textarea></label>
         <div class="block"><span>프로필 사진</span><div class="row gap">${p.photo ? `<img src="${YT.photoUrl(p.photo)}" class="thumb-sm">` : ''}<input type="file" accept="image/*" id="pPhoto"></div></div>
         <div class="row gap end"><button type="button" class="btn" data-close>취소</button><button class="btn primary">저장</button></div></form>`);

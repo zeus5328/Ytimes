@@ -72,6 +72,7 @@
     const onKey = (e) => { if (e.key === 'Escape') close(); };
     document.addEventListener('keydown', onKey);
     root.querySelector('.modal-back').addEventListener('click', (e) => { if (e.target.classList.contains('modal-back') || e.target.closest('[data-close]')) close(); });
+    YT._modalClose = close;
     return { el: root.querySelector('.modal'), close };
   };
   YT.confirm = (msg) => window.confirm(msg);
@@ -143,6 +144,20 @@
     const r = await YT.api('/api/articles' + (full ? '?full=1' : ''));
     cache[full ? 'articlesFull' : 'articles'] = { v: r.articles, t: Date.now() }; return r.articles;
   };
+  // ── 페이스타임: 아이폰·아이패드·맥에서만 바로 걸 수 있어요 (아이패드는 맥처럼 보이기도 해서 터치로 함께 판단)
+  YT.isApple = () => /iPhone|iPad|iPod/.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent));
+  YT.facetime = async (force) => {
+    if (!YT.state.user) return { room: '', contacts: {} };
+    if (!force && cache.ft && Date.now() - cache.ft.t < 60000) return cache.ft.v;
+    const v = await YT.api('/api/facetime').catch(() => ({ room: '', contacts: {} })); cache.ft = { v, t: Date.now() }; return v;
+  };
+  YT.ftHref = (v) => 'facetime:' + (String(v).includes('@') ? String(v).trim() : String(v).replace(/[^\d+]/g, ''));
+  // 사람에게 거는 버튼 (애플 기기가 아니면 안내만)
+  YT.ftButton = (name, v, cls = 'small') => (!v ? '' : YT.isApple()
+    ? `<a class="btn ${cls} ft-call" href="${esc(YT.ftHref(v))}" title="${esc(name)}에게 페이스타임">📹 페이스타임</a>`
+    : `<span class="btn ${cls} ft-call off" title="페이스타임은 아이폰·아이패드·맥에서 걸 수 있어요">📹 페이스타임 <small>(애플 기기)</small></span>`);
+  // 가족 영상통화방 (페이스타임 링크 — 안드로이드·윈도우도 인터넷 창으로 들어와요)
+  YT.ftRoomBand = (ft) => (ft && ft.room ? `<section class="ft-room" aria-label="가족 영상통화방"><span class="ft-ic" aria-hidden="true">📹</span><div class="grow"><b>가족 영상통화방</b><small>${esc(ft.room_note || '누르면 페이스타임 통화방으로 들어가요. 안드로이드·윈도우는 인터넷 창으로 참여해요.')}</small></div><a class="btn small primary" href="${esc(ft.room)}" target="_blank" rel="noopener">들어가기</a></section>` : '');
   YT.getYearEvents = async (year, force) => {
     const k = 'ev' + year;
     if (!force && cache[k] && Date.now() - cache[k].t < 15000) return cache[k].v;
@@ -471,6 +486,7 @@
     const h = (location.hash || '#/').slice(1) || '/';
     if (leaveGuard && !leaveGuard()) { history.replaceState(null, '', lastHash || '#/'); return; }
     leaveGuard = null; lastHash = location.hash;
+    if ($('#modalRoot') && $('#modalRoot').children.length && YT._modalClose) YT._modalClose(); // 다른 화면으로 가면 열린 창은 닫기 (뒤로 가기 등)
     window.onbeforeunload = null;
     markNav(); $('.user-menu')?.removeAttribute('open'); YT.refreshTodo();
     const act = $('.nav-links a.active'); const ul = $('.nav-links');

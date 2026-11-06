@@ -2189,3 +2189,14 @@ svg.vc { width: 100%; height: auto; display: block; }
 .pl-search { display: flex; gap: .375rem; flex-wrap: wrap; } .pl-search .input { flex: 1 1 12rem; }
 .ok-text { color: #2E7D5B; } .pl-results small { display: block; color: var(--muted); font-size: .75rem; font-weight: 400; }
 .tt-title { font-size: 1.0625rem; }
+
+/* 페이스타임 */
+.ft-call.off { opacity: .55; cursor: not-allowed; } .ft-call small { font-weight: 500; }
+.ft-room { display: flex; align-items: center; gap: .75rem; padding: .75rem 1rem; margin: 0 0 1rem; border: 1px solid color-mix(in srgb, #2E7D5B 40%, var(--line)); border-radius: var(--r-lg); background: color-mix(in srgb, #2E7D5B 7%, var(--surface)); }
+.ft-room.empty { border-style: dashed; background: var(--surface); }
+.ft-room b { display: block; font-size: .9375rem; } .ft-room small { display: block; color: var(--muted); font-size: .8125rem; }
+.ft-ic { font-size: 1.5rem; }
+.cel-acts { display: flex; flex-wrap: wrap; gap: .375rem; }
+.p-acts { display: flex; flex-wrap: wrap; gap: .5rem; align-items: flex-start; }
+@media (max-width: 560px) { .ft-room { flex-wrap: wrap; } .ft-room .btn { width: 100%; } }
+@media (max-width: 560px) { .celebrate { flex-wrap: wrap; } .celebrate .cel-body { flex: 1 1 100%; } .cel-acts { flex: 1 1 100%; } .cel-acts .btn { flex: 1 1 auto; } }
