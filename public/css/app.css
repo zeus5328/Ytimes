@@ -1898,5 +1898,5 @@ div.gl:hover { border-color: var(--line); }
 @media print { .art-writers .aw-recent { display: none; } .aw-card { border-color: #999; } }
 /* 하단 로고 (아래쪽 신문 이름 왼쪽) */
 .foot-id { display: flex; align-items: center; gap: .75rem; }
-.foot-logo { height: 2.75rem; width: auto; max-width: 9rem; object-fit: contain; flex: none; }
+.foot-logo { width: 2.75rem; height: 2.75rem; border-radius: 50%; object-fit: cover; flex: none; }
 .thumb-sm.logo-prev { object-fit: contain; background: repeating-conic-gradient(var(--surface-2) 0 25%, var(--surface) 0 50%) 0 0 / 12px 12px; border: 1px solid var(--line); }
