@@ -276,6 +276,7 @@ const usersWith = (minRole, except) => all('SELECT id, role FROM users').filter(
 // 오늘·내일 생일과 기념일 — 알림함을 열 때 그 사람 몫을 만든다
 function birthdayNotices(user) {
   try { birthdayPoints(user); } catch (e) { console.error('생일 포인트:', e.message); }
+  try { monthlyPoints(user); } catch (e) { console.error('매달 포인트:', e.message); }
   deadlineNotices(user);
   capsuleNotices(user);
   if (!isRole(user, 'subscriber')) return;
@@ -1672,7 +1673,7 @@ route('GET', '/api/points', 'reporter', ({ user, query }) => {
       .map((u) => ({ ...u, balance: balance(u.id), articles: get("SELECT COUNT(*) c FROM points WHERE user_id=? AND kind='article'", u.id).c }));
     out.pending = all("SELECT * FROM coupon_issues WHERE status='issued' ORDER BY created").map(issueOut);
     out.recent = all("SELECT * FROM coupon_issues WHERE status<>'issued' ORDER BY COALESCE(NULLIF(used_at,''), created) DESC LIMIT 30").map(issueOut);
-    out.birthdays = all('SELECT id, display_name FROM users ORDER BY created').map((u) => { const b = userBirthday(u); return { id: u.id, display_name: u.display_name, title: b ? b.title : '', next: b ? b.next : '' }; });
+    out.birthdays = all('SELECT id, display_name FROM users ORDER BY created').map((u) => { const b = userBirthday(u); return { id: u.id, display_name: u.display_name, title: b ? b.title : '', next: b ? b.next : '', monthly: Math.max(0, parseInt(monthlyConf()[u.id], 10) || 0) }; });
     out.unpaid = all("SELECT * FROM articles WHERE deleted=0 AND status='published' AND author_id IS NOT NULL AND author_id<>''").filter((a) => !get("SELECT 1 FROM points WHERE kind='article' AND ref=? AND user_id=?", a.id, a.author_id)).length;
   }
   return out;
@@ -1772,6 +1773,26 @@ function birthdayPoints(user) {
   if (addPoints(user.id, amt, `생일 축하 포인트 (${d.slice(0, 4)})`, 'birthday', 'bday-' + d))
     notify([user.id], { kind: 'points', title: `생일 축하해요! +${amt.toLocaleString('ko-KR')}포인트`, body: '유니 타임즈가 드리는 생일 선물이에요. 원고료 · 쿠폰에서 써 보세요.', link: '#/points', ukey: 'bday-points:' + d });
 }
+
+// 매달 포인트 — 정해 둔 가족에게 달마다 한 번 (그 달에 처음 들어올 때)
+const monthlyConf = () => { try { const o = JSON.parse(getSetting('monthly_points', '{}')); return o && typeof o === 'object' ? o : {}; } catch { return {}; } };
+if (getSetting('monthly_seeded', '') !== '1') {
+  const eun = all('SELECT id, display_name FROM users').find((u) => String(u.display_name).replace(/\s+/g, '') === '김은지');
+  if (eun) { setSetting('monthly_points', JSON.stringify({ ...monthlyConf(), [eun.id]: 50000 })); setSetting('monthly_seeded', '1'); }
+}
+function monthlyPoints(user) {
+  const amt = Math.max(0, parseInt(monthlyConf()[user && user.id], 10) || 0); if (!amt) return;
+  const ym = kstToday().slice(0, 7);
+  if (addPoints(user.id, amt, `${+ym.slice(5)}월 포인트`, 'monthly', 'monthly-' + ym))
+    notify([user.id], { kind: 'points', title: `${+ym.slice(5)}월 포인트 +${amt.toLocaleString('ko-KR')}P`, body: '이번 달 포인트가 들어왔어요. 원고료 · 쿠폰에서 써 보세요.', link: '#/points', ukey: 'monthly:' + ym });
+}
+route('PUT', '/api/points/monthly', 'admin', ({ body }) => {
+  const u = get('SELECT id FROM users WHERE id=?', body.user_id) || fail(404, '계정을 찾을 수 없어요.');
+  const amt = Math.max(0, Math.min(1e7, parseInt(body.amount, 10) || 0));
+  const c = monthlyConf(); if (amt) c[u.id] = amt; else delete c[u.id];
+  setSetting('monthly_points', JSON.stringify(c)); setSetting('monthly_seeded', '1');
+  return { ok: true, monthly: c };
+});
 
 // ───────────────────────── 착한 일 — 아이가 한 일을 올리면 부모님(시니어기자 이상)이 확인하고 포인트를 준다
 db.exec(`CREATE TABLE IF NOT EXISTS deed_menu (id TEXT PRIMARY KEY, title TEXT NOT NULL, points INTEGER NOT NULL, icon TEXT DEFAULT '', active INTEGER DEFAULT 1, sort INTEGER DEFAULT 0, created TEXT NOT NULL);

@@ -76,6 +76,10 @@
       <section class="pt-sec"><div class="side-head"><h2>생일 축하 포인트</h2><span class="muted small">생일날 사이트에 들어오면 ${P(d.rate.bday)}P가 한 번 들어가요 (생일 뒤 30일 안에 들어와도 받아요)</span></div>
         <table class="table pt-members"><thead><tr><th>가족 계정</th><th>찾은 생일 일정</th><th>다음 생일</th></tr></thead><tbody>${(d.birthdays || []).map((b) => `<tr><th>${esc(b.display_name)}</th><td>${b.title ? esc(b.title) : '<span class="muted">못 찾았어요</span>'}</td><td>${b.next ? dt(b.next) : '—'}</td></tr>`).join('')}</tbody></table>
         <p class="muted small">일정 › 생일·기념일에 있는 생일 제목에 <b>계정 이름</b>(예: ‘엄마 생일(김은지)’)이 들어 있으면 그 생일로 줘요. ‘못 찾았어요’라면 생일 제목에 이름을 넣어 주세요. 0으로 저장하면 생일 포인트를 주지 않아요.</p>
+      </section>
+      <section class="pt-sec"><div class="side-head"><h2>매달 포인트</h2><span class="muted small">정한 가족에게 달마다 한 번 — 그 달에 처음 사이트에 들어오면 들어가요</span></div>
+        <table class="table pt-members"><thead><tr><th>가족 계정</th><th>매달 주는 포인트</th><th></th></tr></thead><tbody>${(d.birthdays || []).map((b) => `<tr><th>${esc(b.display_name)}</th><td><input class="input sm" style="max-width:8rem;text-align:right" inputmode="numeric" data-mon="${b.id}" value="${b.monthly || ''}" placeholder="0"> P</td><td><button class="btn small" data-monsave="${b.id}">저장</button></td></tr>`).join('')}</tbody></table>
+        <p class="muted small">비우거나 0으로 저장하면 매달 포인트를 주지 않아요.</p>
 </section>
       <section class="pt-sec"><div class="side-head"><h2>쿠폰 만들기 · 고치기</h2><button class="btn small" data-new>새 쿠폰</button></div>
         <div class="cp-list">${d.coupons.map((c) => ticket(c, { cls: c.active ? '' : 'dim', meta: `${c.active ? '판매 중' : '판매 멈춤'} · 판 수량 ${c.issued}장${c.stock >= 0 ? ` / ${c.stock}장` : ''}${c.per_user ? ` · 1인 ${c.per_user}장` : ''}`,
@@ -106,6 +110,7 @@
         else if (b.dataset.cancel) { if (!YT.confirm('이 쿠폰을 취소하고 포인트를 돌려줄까요?')) return; await YT.post(`/api/coupon-issues/${b.dataset.cancel}`, { action: 'cancel' }); YT.toast('취소하고 포인트를 돌려줬어요.'); managePage(box); }
         else if (b.dataset.edit) editor(d.coupons.find((c) => c.id === b.dataset.edit));
         else if (b.hasAttribute('data-new')) editor(null);
+        else if (b.dataset.monsave) { const v = box.querySelector(`[data-mon="${b.dataset.monsave}"]`).value; await YT.put('/api/points/monthly', { user_id: b.dataset.monsave, amount: v }); YT.toast('매달 포인트를 저장했어요.'); managePage(box); }
         else if (b.id === 'backpay') { b.disabled = true; const r = await YT.post('/api/points/backpay', {}); YT.toast(r.message); managePage(box); }
       } catch (err) { YT.err(err); b.disabled = false; }
     };
