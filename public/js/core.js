@@ -84,13 +84,29 @@
     img.onload = () => {
       const s = Math.min(1, maxSide / Math.max(img.width, img.height));
       const c = document.createElement('canvas'); c.width = Math.round(img.width * s); c.height = Math.round(img.height * s);
-      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height); URL.revokeObjectURL(url);
-      resolve({ data: c.toDataURL('image/jpeg', quality), thumb: YT.makeThumb(img), width: c.width, height: c.height, name: file.name,
+      const ctx = c.getContext('2d'); ctx.drawImage(img, 0, 0, c.width, c.height); URL.revokeObjectURL(url);
+      // 투명한 부분이 있는 PNG·WebP·GIF(로고 등)는 PNG 그대로 — JPG로 바꾸면 투명한 곳이 검게 변한다
+      const alpha = /png|webp|gif/i.test(file.type) && YT.hasAlpha(ctx, c.width, c.height);
+      resolve({ data: alpha ? c.toDataURL('image/png') : c.toDataURL('image/jpeg', quality), thumb: alpha ? null : YT.makeThumb(img), width: c.width, height: c.height, name: file.name,
         taken: file.lastModified ? new Date(file.lastModified).toISOString().slice(0, 10) : '' });
     };
     img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('사진을 읽지 못했습니다.')); };
     img.src = url;
   });
+  YT.hasAlpha = (ctx, w, h) => { try { const d = ctx.getImageData(0, 0, w, h).data; for (let i = 3; i < d.length; i += 4) if (d[i] < 250) return true; } catch {} return false; };
+  // 검은 배경을 투명하게 — 가장자리에서 이어진 검은 부분만 지운다(그림 안의 검은 선은 그대로), 경계는 부드럽게
+  YT.knockoutBlack = (img, cut = 42, soft = 90) => {
+    const w = img.naturalWidth || img.width, h = img.naturalHeight || img.height;
+    const c = document.createElement('canvas'); c.width = w; c.height = h; const ctx = c.getContext('2d'); ctx.drawImage(img, 0, 0);
+    const im = ctx.getImageData(0, 0, w, h); const d = im.data; const dark = (i) => Math.max(d[i], d[i + 1], d[i + 2]);
+    const seen = new Uint8Array(w * h); const stack = [];
+    const push = (x, y) => { if (x < 0 || y < 0 || x >= w || y >= h) return; const k = y * w + x; if (seen[k]) return; if (dark(k * 4) > soft) return; seen[k] = 1; stack.push(k); };
+    for (let x = 0; x < w; x++) { push(x, 0); push(x, h - 1); } for (let y = 0; y < h; y++) { push(0, y); push(w - 1, y); }
+    while (stack.length) { const k = stack.pop(); const x = k % w, y = (k - x) / w; const v = dark(k * 4);
+      d[k * 4 + 3] = v <= cut ? 0 : Math.min(d[k * 4 + 3], Math.round(255 * (v - cut) / (soft - cut)));
+      if (v <= cut) { push(x + 1, y); push(x - 1, y); push(x, y + 1); push(x, y - 1); } }
+    ctx.putImageData(im, 0, 0); return c.toDataURL('image/png');
+  };
   // 목록·카드용 작은 사진 (긴 변 640px)
   YT.makeThumb = (img, side = 640) => {
     const s = Math.min(1, side / Math.max(img.width || img.naturalWidth, img.height || img.naturalHeight));
@@ -326,7 +342,7 @@
     const lo = $('#logoutBtn');
     if (lo) lo.onclick = () => YT.logout();
     $('#siteFooter').innerHTML = `<div class="container foot">
-      <div class="foot-id">${s.mascot ? `<img class="foot-mascot" src="${YT.thumbUrl(s.mascot)}" alt="유니" loading="lazy">` : ''}<div class="foot-brand"><b>${esc(s.site_name)}</b><span>${esc(s.kicker)} · 창간 ${esc(s.founded)}</span></div></div>
+      <div class="foot-id">${s.mascot ? `<img class="foot-logo" src="${YT.photoUrl(s.mascot)}" alt="" loading="lazy">` : ''}<div class="foot-brand"><b>${esc(s.site_name)}</b><span>${esc(s.kicker)} · 창간 ${esc(s.founded)}</span></div></div>
       <nav class="foot-links" aria-label="아래 메뉴">${YT.can('reporter') ? '<a href="#/newsroom">편집실</a>' : ''}<a href="#/reporters">기자단</a><a href="#/settings">설정</a><a href="#/guide">이용 안내</a></nav></div>`;
     YT.applyPrefs();
     markNav();

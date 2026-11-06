@@ -1645,6 +1645,12 @@ async function handle(req, res) {
       if (ph.kind === 'studio') { const u = currentUser(req); if (!isRole(u, 'admin')) { res.writeHead(403); return res.end(); } }
       if (membersOnly() && ph.kind !== 'logo' && !currentUser(req)) { res.writeHead(401); return res.end(); }
       const small = url.searchParams.get('s') === 't' && ph.thumb;
+      if (store.cloud && url.searchParams.get('raw') === '1') { // 같은 주소에서 사진 내용 그대로 (로고 배경 바꾸기 등 화면에서 다시 그릴 때)
+        const b = store.read(ph.file); if (!b) { res.writeHead(404); return res.end(); }
+        const ext = ph.file.split('.').pop().toLowerCase();
+        res.writeHead(200, { 'Content-Type': { jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', webp: 'image/webp', gif: 'image/gif' }[ext] || 'application/octet-stream', 'Cache-Control': 'private, no-store', 'Content-Length': b.length });
+        return res.end(b);
+      }
       return serveUpload(res, small ? ph.id + '_t.jpg' : ph.file, ph.kind === 'studio' ? 'private, max-age=3600' : 'public, max-age=31536000, immutable', req);
     }
     if (p.startsWith('/api/')) {

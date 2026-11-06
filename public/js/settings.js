@@ -103,10 +103,10 @@
         <div class="form-row"><label>신문 이름<input class="input" name="site_name" maxlength="30" value="${esc(S.site_name)}"></label><label>창간일<input type="date" class="input" name="founded" value="${esc(S.founded)}"></label></div>
         <div class="form-row"><label>머리 문구<input class="input" name="kicker" maxlength="40" value="${esc(S.kicker)}"></label><label class="grow">표어<input class="input" name="tagline" maxlength="60" value="${esc(S.tagline)}"></label></div>
         <label>편집자의 말 (1면 EDITOR’S NOTE)<textarea class="input" name="editor_note" rows="5">${esc(S.editor_note)}</textarea></label>
-        <div class="block"><span>제호 로고 (선택)</span><div class="row gap" id="logoRow">${S.logo ? `<img src="${YT.photoUrl(S.logo)}" class="thumb-sm" alt="현재 로고">` : '<span class="muted small">로고가 없으면 신문 이름 글자만 표시돼요.</span>'}
-          <label class="btn small" for="logoFile">로고 올리기</label><input type="file" accept="image/*" id="logoFile" hidden>${S.logo ? '<button type="button" class="btn small danger ghost" id="logoRm">로고 빼기</button>' : ''}</div></div>
-        <div class="block"><span>아래쪽 유니 사진 (선택)</span><div class="row gap">${S.mascot ? `<img src="${YT.photoUrl(S.mascot)}" class="thumb-sm round" alt="현재 유니 사진">` : '<span class="muted small">화면 맨 아래 신문 이름 왼쪽에 동그랗게 보여요.</span>'}
-          <label class="btn small" for="mascotFile">사진 올리기</label><input type="file" accept="image/*" id="mascotFile" hidden>${S.mascot ? '<button type="button" class="btn small danger ghost" id="mascotRm">사진 빼기</button>' : ''}</div></div>
+        <div class="block"><span>제호 로고 (선택)</span><div class="row gap" id="logoRow">${S.logo ? `<img src="${YT.photoUrl(S.logo)}" class="thumb-sm logo-prev" alt="현재 로고">` : '<span class="muted small">로고가 없으면 신문 이름 글자만 표시돼요.</span>'}
+          <label class="btn small" for="logoFile">로고 올리기</label><input type="file" accept="image/*" id="logoFile" hidden>${S.logo ? '<button type="button" class="btn small" data-knock="logo">검은 배경 투명하게</button><button type="button" class="btn small danger ghost" id="logoRm">로고 빼기</button>' : ''}</div></div>
+        <div class="block"><span>하단 로고 (선택)</span><div class="row gap">${S.mascot ? `<img src="${YT.photoUrl(S.mascot)}" class="thumb-sm logo-prev" alt="현재 하단 로고">` : '<span class="muted small">화면 맨 아래 신문 이름 왼쪽에 보여요. 배경이 투명한 PNG가 가장 깔끔해요.</span>'}
+          <label class="btn small" for="mascotFile">로고 올리기</label><input type="file" accept="image/*" id="mascotFile" hidden>${S.mascot ? '<button type="button" class="btn small" data-knock="mascot">검은 배경 투명하게</button><button type="button" class="btn small danger ghost" id="mascotRm">로고 빼기</button>' : ''}</div></div>
         <div class="set-actions"><button class="btn primary">신문 정보 저장</button></div></form>`, { desc: '1면 제호, 머리·바닥 문구, 이달의 지면에 함께 쓰여요.' })
       + panel('누가 볼 수 있나요', row('가족만 보기', S.members_only === '1' ? '켜짐 — 가족 계정으로 로그인해야 신문을 볼 수 있어요. 계정 없는 친척은 지면의 ‘친척에게 링크 보내기’로 보내 주세요.' : '꺼짐 — 사이트 주소를 아는 사람은 누구나 발행된 기사를 읽을 수 있어요.', toggle('members_only', S.members_only === '1', '가족만 보기')))
       + panel('미리보기', `<div class="set-mast"><small>${esc(S.kicker)}</small><b>${esc(S.site_name)}</b><span>${esc(S.tagline)} · 창간 ${esc(S.founded)}</span></div>`);
@@ -116,8 +116,21 @@
     YT.$('#logoFile').onchange = async (e) => { try { logo = await YT.uploadImage(e.target.files[0], 'logo'); YT.toast('로고를 올렸어요. 저장을 눌러주세요.'); } catch (err) { YT.err(err); } };
     const rm = YT.$('#logoRm'); if (rm) rm.onclick = () => { logo = ''; YT.toast('저장을 누르면 로고가 빠져요.'); };
     let mascot = YT.state.settings.mascot || '';
-    YT.$('#mascotFile').onchange = async (e) => { try { mascot = await YT.uploadImage(e.target.files[0], 'logo'); YT.toast('유니 사진을 올렸어요. 저장을 눌러주세요.'); } catch (err) { YT.err(err); } };
-    const mrm = YT.$('#mascotRm'); if (mrm) mrm.onclick = () => { mascot = ''; YT.toast('저장을 누르면 유니 사진이 빠져요.'); };
+    YT.$('#mascotFile').onchange = async (e) => { try { mascot = await YT.uploadImage(e.target.files[0], 'logo'); YT.toast('하단 로고를 올렸어요. 저장을 눌러주세요.'); } catch (err) { YT.err(err); } };
+    const mrm = YT.$('#mascotRm'); if (mrm) mrm.onclick = () => { mascot = ''; YT.toast('저장을 누르면 하단 로고가 빠져요.'); };
+    // 검은 배경 투명하게: 지금 로고를 받아 가장자리의 검은 부분을 지운 PNG로 다시 올리고 바로 저장
+    view.querySelectorAll('[data-knock]').forEach((b) => b.onclick = async () => {
+      const key = b.dataset.knock; const id = YT.state.settings[key]; if (!id) return;
+      b.disabled = true; b.textContent = '바꾸는 중…';
+      try {
+        const src = YT.photoUrl(id); const blob = await (await fetch(src.startsWith('data:') ? src : src + (src.includes('?') ? '&' : '?') + 'raw=1', { credentials: 'same-origin' })).blob();
+        const img = await new Promise((res, rej) => { const im = new Image(); im.onload = () => res(im); im.onerror = () => rej(new Error('로고를 읽지 못했어요.')); im.src = URL.createObjectURL(blob); });
+        const data = YT.knockoutBlack(img);
+        const r = await YT.post('/api/upload', { data, kind: 'logo', width: img.naturalWidth, height: img.naturalHeight });
+        const s2 = await YT.put('/api/settings', { [key]: r.id }); YT.state.settings = s2.settings; YT.renderChrome();
+        YT.toast('검은 배경을 투명하게 바꿨어요.'); draw(view, 'paper', true);
+      } catch (err) { YT.err(err); b.disabled = false; b.textContent = '검은 배경 투명하게'; }
+    });
     const mo = view.querySelector('input[name=members_only]');
     if (mo) mo.onchange = async () => {
       if (mo.checked && !YT.confirm('가족만 보기를 켤까요? 로그인하지 않은 사람은 기사·사진·일정을 볼 수 없게 돼요.')) { mo.checked = false; return; }
