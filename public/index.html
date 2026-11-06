@@ -46,5 +46,9 @@
 <script src="/js/games.js"></script>
 <script src="/js/deeds.js"></script>
 <script>YT.start();</script>
+<script>/* 화면을 못 그렸을 때(옛 저장본·연결 문제) 빈 화면 대신 새로 고침 안내 */
+setTimeout(function(){var h=document.getElementById('siteHeader'),v=document.getElementById('view');if(h&&h.innerHTML.trim()&&v&&v.innerHTML.trim())return;
+v.innerHTML='<div style="max-width:28rem;margin:4rem auto;padding:0 1rem;text-align:center;font-family:sans-serif"><h2>화면을 불러오지 못했어요</h2><p>새 버전으로 바뀌는 중이거나 인터넷이 잠시 끊겼을 수 있어요.</p><button id="ytFix" style="padding:.75rem 1.25rem;border-radius:.5rem;border:1px solid #888;background:#fff;font-size:1rem">새로 고침</button></div>';
+document.getElementById('ytFix').onclick=function(){var go=function(){location.reload()};try{(navigator.serviceWorker?navigator.serviceWorker.getRegistrations():Promise.resolve([])).then(function(rs){return Promise.all(rs.map(function(r){return r.unregister()}))}).then(function(){return window.caches?caches.keys().then(function(ks){return Promise.all(ks.map(function(k){return caches.delete(k)}))}):0}).then(go,go)}catch(e){go()}};},6000);</script>
 </body>
 </html>

@@ -589,7 +589,18 @@
   addEventListener('load', () => {
     if (window.YTPreview || !('serviceWorker' in navigator) || !/^https?:$/.test(location.protocol)) return;
     if (location.protocol === 'http:' && !/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname)) return; // 서비스 워커는 HTTPS(또는 이 컴퓨터)에서만
-    navigator.serviceWorker.register('/sw.js').catch(() => {});
+    // 새 버전이 올라오면: 다시 이 앱으로 돌아올 때 확인하고, 새 버전이 자리 잡으면 화면을 한 번 새로 고친다 (오래된 화면에 갇히지 않게)
+    const had = !!navigator.serviceWorker.controller;
+    navigator.serviceWorker.register('/sw.js').then((reg) => {
+      document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') reg.update().catch(() => {}); });
+      setInterval(() => reg.update().catch(() => {}), 30 * 60e3);
+    }).catch(() => {});
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (!had || YT._reloading) return;
+      const busy = /^#\/write/.test(location.hash) || document.querySelector('#modalRoot .modal');
+      if (busy) { YT.toast('새 버전이 나왔어요. 저장한 뒤 새로 고침해 주세요.'); return; }
+      YT._reloading = true; location.reload();
+    });
   });
   addEventListener('offline', () => YT.toast('인터넷이 끊겼어요. 마지막으로 본 신문을 보여드려요.', 'error'));
   addEventListener('online', () => YT.toast('다시 연결됐어요.'));
