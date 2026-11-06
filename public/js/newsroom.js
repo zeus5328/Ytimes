@@ -216,7 +216,7 @@
       title: a?.title || '', section: a?.section || query.section || '일반 기사', category: a?.category || '일상',
       issue_month: a?.issue_month || today.slice(0, 7), hashtags: a?.hashtags || '', photo: a?.photo || null,
       photo_caption: a?.photo_caption || '', blocks: a?.blocks?.length ? JSON.parse(JSON.stringify(a.blocks)) : [{ type: 'text', text: '' }],
-      coauthors: (a?.coauthors || []).map((c) => c.id), place: a?.place || null,
+      coauthors: (a?.coauthors || []).map((c) => c.id), place: a?.place || null, places: a?.places?.length ? a.places.map((p) => ({ ...p })) : a?.place ? [{ ...a.place }] : [],
     };
     // 다른 화면에서 넘어온 새 기사 (이번 주 취재 질문·버킷리스트 달성·레시피)
     if (!a) {
@@ -376,6 +376,7 @@
       if (files.length > room) { YT.toast(`본문 사진은 10장까지라 ${room}장만 넣을게요.`); files = files.slice(0, room); }
       const ids = [];
       for (let k = 0; k < files.length; k++) { YT.toast(`사진 올리는 중 ${k + 1}/${files.length}…`); try { ids.push(await YT.uploadImage(files[k])); } catch (err) { YT.err(err); } }
+      noteGps(files);
       if (!ids.length) return;
       const photos = ids.map((id) => ({ type: 'photo', photo: id, caption: '', align: 'center', size: 'medium' }));
       let idx;
@@ -460,6 +461,7 @@
       if (pending === 'main') {
         YT.toast('사진을 올리는 중…');
         try { st.photo = await YT.uploadImage(files[0]); markDirty(); drawMain(); drawBlocks(); YT.toast('대표 사진을 정했어요.'); } catch (err) { YT.err(err); }
+        noteGps(files);
       } else await insertPhotos(files);
       pending = 'body';
     };
@@ -495,14 +497,39 @@
       };
       window.addEventListener('hashchange', stop, { once: true });
     }
-    // 장소 (여행 지도)
+    // 장소 (여행 지도) — 여러 곳을 다녀온 순서대로, 사진에 찍힌 위치도 제안
+    if (!Array.isArray(st.places)) st.places = st.place ? [st.place] : [];
+    let gpsSug = []; // 사진에서 찾은 위치 [{lat,lng,name}]
+    const syncPlace = () => { st.place = st.places[0] || null; };
     const drawPlace = () => {
-      const pl = st.place; YT.$('#placeBox').innerHTML = pl ? `<div class="pl-on"><b>${esc(pl.name)}</b><small class="muted">${pl.lat.toFixed(3)}, ${pl.lng.toFixed(3)}</small><div class="row gap"><button type="button" class="btn tiny" id="plEdit">바꾸기</button><button type="button" class="btn tiny ghost" id="plDel">빼기</button></div></div>`
-        : '<button type="button" class="btn small wide" id="plEdit">지도에서 장소 고르기</button><p class="muted small">여행·나들이 기사라면 장소를 넣어 보세요. ‘우리 집 → 여행 지도’에 핀으로 꽂혀요.</p>';
-      YT.$('#plEdit').onclick = async () => { const r = await YT.pickPlace(st.place); if (r) { st.place = r; markDirty(); drawPlace(); } };
-      const del = YT.$('#plDel'); if (del) del.onclick = () => { st.place = null; markDirty(); drawPlace(); };
+      syncPlace(); const box = YT.$('#placeBox'); if (!box) return;
+      const n = st.places.length;
+      box.innerHTML = `${gpsSug.length ? `<div class="pl-sug"><b>📷 사진 찍은 곳을 찾았어요</b>${gpsSug.map((g, i) => `<div class="pl-sug-row"><span>${esc(g.name || '사진 찍은 곳')}</span><button type="button" class="btn tiny primary" data-sadd="${i}">넣기</button><button type="button" class="btn tiny ghost" data-sno="${i}">아니요</button></div>`).join('')}</div>` : ''}
+        ${n ? `<ol class="pl-stops">${st.places.map((p, i) => `<li><button type="button" class="linklike pl-name" data-pedit="${i}" title="바꾸기"><b>${n > 1 ? `<i>${i + 1}</i>` : ''}${esc(p.name)}</b></button>
+          <span class="pl-acts">${i ? `<button type="button" class="btn tiny ghost" data-pup="${i}" aria-label="앞으로">↑</button>` : ''}<button type="button" class="btn tiny ghost" data-pdel="${i}" aria-label="빼기">✕</button></span></li>`).join('')}</ol>` : ''}
+        ${n < 10 ? `<button type="button" class="btn small wide" id="plAdd">${n ? '+ 다녀온 곳 더하기' : '지도에서 장소 고르기'}</button>` : ''}
+        <p class="muted small">${n > 1 ? '다녀온 순서대로 기사 안 지도에 번호와 선으로 그려져요.' : '여행·나들이 기사라면 장소를 넣어 보세요. 기사 안에 작은 지도가 생기고 ‘여행 지도’에도 핀이 꽂혀요.'}</p>`;
     };
     drawPlace();
+    YT.$('#placeBox').addEventListener('click', async (e) => {
+      const b = e.target.closest('button'); if (!b) return;
+      if (b.id === 'plAdd') { const r = await YT.pickPlace(null); if (r) { st.places.push(r); markDirty(); drawPlace(); } }
+      else if (b.dataset.pedit) { const i = +b.dataset.pedit; const r = await YT.pickPlace(st.places[i]); if (r) { st.places[i] = r; markDirty(); drawPlace(); } }
+      else if (b.dataset.pdel) { st.places.splice(+b.dataset.pdel, 1); markDirty(); drawPlace(); }
+      else if (b.dataset.pup) { const i = +b.dataset.pup; [st.places[i - 1], st.places[i]] = [st.places[i], st.places[i - 1]]; markDirty(); drawPlace(); }
+      else if (b.dataset.sadd) { const g = gpsSug.splice(+b.dataset.sadd, 1)[0]; const r = await YT.pickPlace({ lat: g.lat, lng: g.lng, name: g.name || '' }); if (r) { st.places.push(r); markDirty(); } drawPlace(); }
+      else if (b.dataset.sno) { gpsSug.splice(+b.dataset.sno, 1); drawPlace(); }
+    });
+    // 사진을 넣을 때 찍은 위치가 있으면 장소로 제안 (이미 넣은 곳과 300m 안이면 건너뛰기)
+    const noteGps = async (files) => {
+      if (!YT.gpsFromFile) return; const found = [];
+      for (const f of files.slice(0, 10)) { const g = await YT.gpsFromFile(f); if (g) found.push(g); }
+      const near = (g) => [...st.places, ...gpsSug, ...found.filter((x) => x !== g && x._keep)].some((p) => YT.distM(p, g) < 300);
+      const fresh = []; for (const g of found) { if (!near(g)) { g._keep = true; fresh.push(g); } }
+      if (!fresh.length) return;
+      for (const g of fresh.slice(0, 3)) { g.name = await YT.reverseName(g.lat, g.lng); delete g._keep; gpsSug.push(g); }
+      drawPlace(); YT.toast('사진 찍은 곳을 찾았어요. 오른쪽 ‘장소’에서 넣을 수 있어요.');
+    };
     YT.$('#helpBtn').onclick = (e) => { const h = YT.$('#wrHelp'); h.hidden = !h.hidden; e.currentTarget.setAttribute('aria-expanded', !h.hidden); };
     YT.$('#tplBtn').onclick = async () => {
       let tpl = TEMPLATES[st.section] ? TEMPLATES[st.section][2] : '';
@@ -590,7 +617,7 @@
     };
 
     // ── 저장
-    const payload = () => ({ ...st, blocks: st.blocks.filter((b) => b.type !== 'text' || b.text.trim()) });
+    const payload = () => ({ ...st, place: st.places[0] || null, places: st.places, blocks: st.blocks.filter((b) => b.type !== 'text' || b.text.trim()) });
     const save = async () => {
       if (!st.title.trim()) { titleEl.focus(); throw new Error('제목을 입력해주세요.'); }
       const r = a ? await YT.put('/api/articles/' + a.id, payload()) : await YT.post('/api/articles', payload());
@@ -627,7 +654,7 @@
     // ── 이어 쓰기 안내
     if (restore) {
       YT.$('#rsYes').onclick = () => { const r = { ...restore }; delete r.saved; Object.assign(st, r); if (!Array.isArray(st.coauthors)) st.coauthors = []; YT.$$('#coPick [data-co]').forEach((b) => { const on = st.coauthors.includes(b.dataset.co); b.classList.toggle('on', on); b.setAttribute('aria-pressed', on); }); titleEl.value = st.title; grow(titleEl); YT.$$('#secPick input').forEach((x) => { x.checked = x.value === st.section; x.parentElement.classList.toggle('on', x.checked); });
-        YT.$('#wCat').value = st.category; YT.$('#wMonth').value = st.issue_month; kicker(); drawTags(); drawBlocks(); drawMain(); markDirty(); YT.$('#wrRestore').remove(); YT.toast('이어서 쓸 수 있어요.'); };
+        YT.$('#wCat').value = st.category; YT.$('#wMonth').value = st.issue_month; if (!Array.isArray(st.places)) st.places = st.place ? [st.place] : []; kicker(); drawTags(); drawBlocks(); drawMain(); drawPlace(); markDirty(); YT.$('#wrRestore').remove(); YT.toast('이어서 쓸 수 있어요.'); };
       YT.$('#rsNo').onclick = () => { try { localStorage.removeItem(draftKey); } catch {} YT.$('#wrRestore').remove(); };
     }
 

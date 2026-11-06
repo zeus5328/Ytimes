@@ -357,7 +357,7 @@ function articleOut(a, user, full = true) {
   if (full) { o.blocks = blocks; o.writers = articleWriters(a); }
   const co = coIds(a).map((id) => ({ id, name: (get('SELECT display_name FROM users WHERE id=?', id) || {}).display_name })).filter((c) => c.name);
   o.coauthors = co; o.lead_author = o.author_name;
-  try { o.place = a.place ? JSON.parse(a.place) : null; } catch { o.place = null; }
+  try { const pl = a.place ? JSON.parse(a.place) : null; o.place = pl ? { name: pl.name, lat: pl.lat, lng: pl.lng } : null; o.places = pl ? (Array.isArray(pl.stops) && pl.stops.length ? pl.stops : [o.place]) : []; } catch { o.place = null; o.places = []; }
   if (co.length) o.author_name = [o.author_name, ...co.map((c) => c.name)].join('·');
   const rc = all('SELECT emoji, COUNT(*) c FROM reactions WHERE article_id=? GROUP BY emoji', a.id);
   o.reactions = Object.fromEntries(rc.map(r => [r.emoji, r.c]));
@@ -786,11 +786,17 @@ route('GET', '/api/articles/:id', null, ({ params, user }) => {
   if (!a || !canSeeArticle(a, user)) fail(404, '기사를 찾을 수 없습니다.');
   return { article: articleOut(a, user) };
 });
-function placeStr(pl) {
-  if (!pl || typeof pl !== 'object') return '';
+// 장소 — 한 곳 또는 여러 곳(다녀온 순서). 첫 장소는 place로도 그대로 (예전 화면과 호환)
+function placeOne(pl) {
+  if (!pl || typeof pl !== 'object') return null;
   const lat = Number(pl.lat), lng = Number(pl.lng), name = str(pl.name, 60);
-  if (!name || !(lat >= -90 && lat <= 90) || !(lng >= -180 && lng <= 180)) return '';
-  return JSON.stringify({ name, lat: Math.round(lat * 1e5) / 1e5, lng: Math.round(lng * 1e5) / 1e5 });
+  if (!name || !(lat >= -90 && lat <= 90) || !(lng >= -180 && lng <= 180)) return null;
+  return { name, lat: Math.round(lat * 1e5) / 1e5, lng: Math.round(lng * 1e5) / 1e5 };
+}
+function placeStr(pl, places) {
+  const list = (Array.isArray(places) ? places : pl ? [pl] : []).map(placeOne).filter(Boolean).slice(0, 10);
+  if (!list.length) return '';
+  return JSON.stringify(list.length > 1 ? { ...list[0], stops: list } : list[0]);
 }
 function articleFields(body) {
   const title = str(body.title, 120);
@@ -803,7 +809,7 @@ function articleFields(body) {
     section: SECTIONS.includes(SECTION_RENAME[body.section] || body.section) ? (SECTION_RENAME[body.section] || body.section) : '일반 기사',
     issue_month: /^\d{4}-\d{2}$/.test(body.issue_month || '') ? body.issue_month : now().slice(0, 7),
     hashtags: tagStr(body.hashtags), photo: body.photo ? str(body.photo, 60) : null, photo_caption: str(body.photo_caption, 300),
-    place: placeStr(body.place),
+    place: placeStr(body.place, body.places),
     coauthors: JSON.stringify([...new Set((Array.isArray(body.coauthors) ? body.coauthors : []).map((x) => str(x, 60)))]
       .filter((id) => { const u = get('SELECT role FROM users WHERE id=?', id); return u && ROLE_RANK[u.role] >= ROLE_RANK.reporter; }).slice(0, 4)),
   };

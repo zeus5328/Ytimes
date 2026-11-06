@@ -34,7 +34,8 @@
         ${a.photo ? `<figure class="art-main-photo"><img src="${YT.photoUrl(a.photo)}" alt="${esc(a.photo_caption || a.title)}">${a.photo_caption ? `<figcaption>${esc(a.photo_caption)}</figcaption>` : ''}</figure>` : ''}
         ${'speechSynthesis' in window ? `<div class="art-listen"><button class="btn small" id="ttsBtn" aria-pressed="false">소리로 듣기</button>${a.status === 'published' ? `<a class="btn small" href="#/read?from=${a.id}">크게 읽기</a>` : ''}<span class="tts-rate" id="ttsRate" hidden><button class="btn tiny" data-rate="0.8">천천히</button><button class="btn tiny" data-rate="1">보통</button><button class="btn tiny" data-rate="1.2">빠르게</button></span></div>` : ''}
         <div class="art-body">${YT.renderBlocks(a.blocks)}</div>
-        ${a.place ? `<a class="art-place" href="#/map?focus=${a.id}">${esc(a.place.name)} <small>여행 지도에서 보기</small></a>` : ''}
+        ${a.place ? (() => { const stops = a.places && a.places.length ? a.places : [a.place]; return `<section class="art-map-box" aria-label="다녀온 곳"><div class="art-map-head"><b>📍 ${stops.length > 1 ? `다녀온 곳 ${stops.length}곳` : esc(a.place.name)}</b><a href="#/map?focus=${a.id}">여행 지도에서 보기 →</a></div>
+          ${stops.length > 1 ? `<ol class="art-stops">${stops.map((p) => `<li>${esc(p.name)}</li>`).join('')}</ol>` : ''}<div class="art-map" id="artMap"><p class="muted small">지도를 불러오는 중…</p></div></section>`; })() : ''}
         ${tagList.length ? `<div class="art-tags">${tagList.map((t) => `<a class="tag" href="#/people/${encodeURIComponent(t)}">#${esc(t)}</a>`).join('')}</div>` : ''}
         <div class="art-tools">
           <button class="btn small" id="printArt">인쇄</button>
@@ -70,6 +71,7 @@
     if (rb) rb.onclick = async (e) => { const b = e.target.closest('[data-act]'); if (!b) return; b.disabled = true; const r = await YT.articleAct(a, b.dataset.act); b.disabled = false; if (r) YT.route(); };
     YT.$('#printArt').onclick = () => window.print();
     // 소리로 듣기 — 기기에 들어 있는 한국어 목소리로 제목과 본문을 읽어 준다
+    if (a.place && YT.drawStopsMap) YT.drawStopsMap(YT.$('#artMap'), a.places && a.places.length ? a.places : [a.place]);
     const tb = YT.$('#ttsBtn');
     if (tb) {
       let rate = +(YT.store.get('yt_tts_rate', '0.9')) || 0.9; let playing = false;

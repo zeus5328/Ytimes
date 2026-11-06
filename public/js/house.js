@@ -32,23 +32,98 @@
     tryBase(0);
   }));
   const tiles = (L, map) => L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 18, attribution: '&copy; OpenStreetMap' }).addTo(map);
+  YT.mapTiles = tiles;
+  // 두 점 사이 거리(m)
+  YT.distM = (a, b) => { const R = 6371e3, t = Math.PI / 180, dLa = (b.lat - a.lat) * t, dLo = (b.lng - a.lng) * t; const h = Math.sin(dLa / 2) ** 2 + Math.cos(a.lat * t) * Math.cos(b.lat * t) * Math.sin(dLo / 2) ** 2; return 2 * R * Math.asin(Math.sqrt(h)); };
+  // 위치 → 알아보기 쉬운 이름 (예: 신림동 · 보라매공원). 못 찾으면 빈 글자
+  YT.reverseName = async (lat, lng) => {
+    try {
+      const r = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&zoom=17&accept-language=ko&lat=${lat}&lon=${lng}`).then((x) => x.json());
+      const a = r.address || {}; const poi = r.name || a.amenity || a.tourism || a.leisure || a.shop || a.building || '';
+      const area = a.neighbourhood || a.quarter || a.suburb || a.village || a.town || a.city_district || a.city || '';
+      return [area, poi].filter(Boolean).filter((x, i, arr) => arr.indexOf(x) === i).join(' · ').slice(0, 60);
+    } catch { return ''; }
+  };
+  // 사진 파일(JPEG)에 들어 있는 찍은 위치 읽기 — 없으면 null
+  YT.gpsFromFile = async (file) => {
+    try {
+      if (!file || !/jpe?g/i.test(file.type || file.name || '')) return null;
+      const buf = await file.slice(0, 256 * 1024).arrayBuffer(); const v = new DataView(buf);
+      if (v.getUint16(0) !== 0xFFD8) return null;
+      let o = 2;
+      while (o + 4 < v.byteLength) {
+        const mk = v.getUint16(o), len = v.getUint16(o + 2);
+        if (mk === 0xFFE1 && v.getUint32(o + 4) === 0x45786966) { // "Exif"
+          const t = o + 10; const le = v.getUint16(t) === 0x4949; const u16 = (p) => v.getUint16(p, le), u32 = (p) => v.getUint32(p, le);
+          const ifd = (p) => { const n = u16(p); const tags = {}; for (let i = 0; i < n; i++) { const e = p + 2 + i * 12; tags[u16(e)] = { type: u16(e + 2), count: u32(e + 4), val: e + 8 }; } return tags; };
+          const ifd0 = ifd(t + u32(t + 4)); if (!ifd0[0x8825]) return null;
+          const g = ifd(t + u32(ifd0[0x8825].val));
+          const rat = (tag) => { if (!tag) return null; const p = t + u32(tag.val); const r = (k) => u32(p + k * 8) / (u32(p + k * 8 + 4) || 1); return r(0) + r(1) / 60 + r(2) / 3600; };
+          const ref = (tag) => (tag ? String.fromCharCode(v.getUint8(tag.val)) : '');
+          let lat = rat(g[2]), lng = rat(g[4]); if (lat == null || lng == null || (!lat && !lng)) return null;
+          if (ref(g[1]) === 'S') lat = -lat; if (ref(g[3]) === 'W') lng = -lng;
+          return Math.abs(lat) <= 90 && Math.abs(lng) <= 180 ? { lat: Math.round(lat * 1e5) / 1e5, lng: Math.round(lng * 1e5) / 1e5 } : null;
+        }
+        if ((mk & 0xFF00) !== 0xFF00) return null; o += 2 + len;
+      }
+    } catch { /* 위치 없음 */ }
+    return null;
+  };
+  // 지난 기사에 넣었던 장소 (최근 것부터, 이름이 같으면 하나로)
+  YT.recentPlaces = async () => {
+    const arts = await YT.getArticles(false, true).catch(() => []); const seen = new Set(); const out = [];
+    for (const a of arts.slice().sort((x, y) => (y.updated || '').localeCompare(x.updated || ''))) for (const p of a.places || (a.place ? [a.place] : [])) { if (!p || seen.has(p.name)) continue; seen.add(p.name); out.push(p); }
+    return out.slice(0, 10);
+  };
+  // 기사 안의 작은 지도 — 다녀온 곳에 번호 핀, 여러 곳이면 순서대로 선
+  YT.drawStopsMap = async (el, stops) => {
+    if (!el || !stops || !stops.length) return;
+    try {
+      const L = await YT.loadLeaflet(); el.innerHTML = '';
+      const m = L.map(el, { scrollWheelZoom: false }); tiles(L, m);
+      const pts = stops.map((p) => [p.lat, p.lng]);
+      stops.forEach((p, i) => L.marker([p.lat, p.lng], { icon: L.divIcon({ className: 'stop-pin', html: `<span>${stops.length > 1 ? i + 1 : '●'}</span>`, iconSize: [26, 26], iconAnchor: [13, 13] }) }).addTo(m).bindPopup(esc(p.name)));
+      if (pts.length > 1) { L.polyline(pts, { color: '#3B4C7A', weight: 3, opacity: 0.7, dashArray: '6 6' }).addTo(m); m.fitBounds(L.latLngBounds(pts).pad(0.25), { maxZoom: 15 }); } else m.setView(pts[0], 15);
+      setTimeout(() => m.invalidateSize(), 150);
+    } catch (err) { el.innerHTML = `<p class="muted small">${esc(err.message)}</p>`; }
+  };
   // 기사 쓰기에서 장소 고르기 — 이름 검색 또는 지도를 눌러 핀 꽂기
   YT.pickPlace = (cur) => new Promise(async (resolve) => {
     let picked = cur ? { ...cur } : null; let done = false;
     const m = YT.modal(`<h2 class="modal-title">장소 고르기</h2>
-      <form class="pl-search" id="plSearch"><input class="input" name="q" placeholder="장소 이름 검색 (예: 강릉 경포대)" value="${esc(cur?.name || '')}"><button class="btn">찾기</button></form>
+      <form class="pl-search" id="plSearch"><input class="input" name="q" placeholder="장소 이름 검색 (예: 강릉 경포대)" value="${esc(cur?.name || '')}"><button class="btn">찾기</button><button type="button" class="btn" id="plHere" title="지금 내가 있는 곳">📍 지금 여기</button></form>
+      <div class="pl-recent" id="plRecent"></div>
       <ul class="pl-results" id="plResults"></ul>
       <div class="pl-map" id="plMap"><p class="muted small">지도를 불러오는 중…</p></div>
       <label class="block">지도에 보일 이름<input class="input" id="plName" maxlength="60" value="${esc(cur?.name || '')}" placeholder="예) 강릉 경포대"></label>
       <p class="muted small">검색하거나 지도를 눌러 핀을 꽂으세요. 지도 © OpenStreetMap</p>
       <div class="row gap end"><button class="btn" data-close>취소</button><button class="btn primary" id="plOk">이 장소로</button></div>`, { wide: true, onClose: () => { if (!done) resolve(null); } });
     let L, map, marker;
+    // 자주 가는 곳: 지난 기사 장소(누르면 바로) + 일정에 적은 장소(누르면 검색)
+    const recent = await YT.recentPlaces().catch(() => []);
+    const evLocs = await YT.getYearEvents(new Date().getFullYear()).then((r) => [...new Set((r.events || []).map((e) => (e.location || '').trim()).filter(Boolean))].filter((n) => !recent.some((p) => p.name === n)).slice(0, 6)).catch(() => []);
+    const rbox = m.el.querySelector('#plRecent');
+    rbox.innerHTML = recent.length || evLocs.length ? `<span class="muted small">자주 가는 곳</span>${recent.map((p, i) => `<button type="button" class="chip" data-rp="${i}">${esc(p.name)}</button>`).join('')}${evLocs.map((n) => `<button type="button" class="chip ghost" data-q="${esc(n)}" title="일정에 적은 장소 — 눌러서 찾기">🔎 ${esc(n)}</button>`).join('')}` : '';
+    rbox.onclick = (e) => {
+      const b = e.target.closest('button'); if (!b) return;
+      if (b.dataset.rp) { const p = recent[+b.dataset.rp]; setPin(p.lat, p.lng, p.name); if (map) map.setView([p.lat, p.lng], 15); }
+      else if (b.dataset.q) { const f = m.el.querySelector('#plSearch'); f.q.value = b.dataset.q; f.requestSubmit ? f.requestSubmit() : f.onsubmit(new Event('submit')); }
+    };
+    m.el.querySelector('#plHere').onclick = (e) => {
+      if (!navigator.geolocation) return YT.toast('이 기기에서는 위치를 알 수 없어요.', 'error');
+      const btn = e.currentTarget; btn.disabled = true; btn.textContent = '찾는 중…';
+      navigator.geolocation.getCurrentPosition(async (pos) => {
+        const lat = Math.round(pos.coords.latitude * 1e5) / 1e5, lng = Math.round(pos.coords.longitude * 1e5) / 1e5;
+        const nm = m.el.querySelector('#plName').value.trim() || (await YT.reverseName(lat, lng)) || '지금 있는 곳';
+        setPin(lat, lng, nm); if (map) map.setView([lat, lng], 16); btn.disabled = false; btn.textContent = '📍 지금 여기';
+      }, () => { btn.disabled = false; btn.textContent = '📍 지금 여기'; YT.toast('위치를 알 수 없어요. 브라우저에서 위치 사용을 허락해 주세요.', 'error'); }, { enableHighAccuracy: true, timeout: 10000 });
+    };
     const setPin = (lat, lng, name) => { picked = { lat, lng, name: name || m.el.querySelector('#plName').value.trim() }; if (name) m.el.querySelector('#plName').value = name; if (!map) return; if (marker) marker.setLatLng([lat, lng]); else marker = L.marker([lat, lng]).addTo(map); map.setView([lat, lng], Math.max(map.getZoom(), 13)); };
     try {
       L = await YT.loadLeaflet(); const box = m.el.querySelector('#plMap'); box.innerHTML = '';
-      map = L.map(box).setView(cur ? [cur.lat, cur.lng] : [36.4, 127.8], cur ? 13 : 7); tiles(L, map);
+      const rec0 = !cur && recent[0]; map = L.map(box).setView(cur ? [cur.lat, cur.lng] : rec0 ? [rec0.lat, rec0.lng] : [36.4, 127.8], cur ? 15 : rec0 ? 12 : 7); tiles(L, map);
       if (cur) marker = L.marker([cur.lat, cur.lng]).addTo(map);
-      map.on('click', (e) => setPin(e.latlng.lat, e.latlng.lng));
+      map.on('click', async (e) => { setPin(e.latlng.lat, e.latlng.lng); const nmEl = m.el.querySelector('#plName'); if (!nmEl.value.trim()) { const nm = await YT.reverseName(e.latlng.lat, e.latlng.lng); if (nm && !nmEl.value.trim()) { nmEl.value = nm; picked.name = nm; } } });
       setTimeout(() => map.invalidateSize(), 150);
     } catch (err) { m.el.querySelector('#plMap').innerHTML = `<p class="muted small">${esc(err.message)} 이름만 넣어도 돼요.</p>`; }
     m.el.querySelector('#plSearch').onsubmit = async (e) => {
@@ -260,6 +335,7 @@
   // ───────── 여행 지도
   async function map(box) {
     const arts = (await YT.getArticles().catch(() => [])).filter((a) => a.place);
+    const stopsOf = (a) => (a.places && a.places.length ? a.places : [a.place]);
     const focus = YT.query().focus;
     box.innerHTML = `<div class="hs-bar"><p class="muted small">기사를 쓸 때 오른쪽 ‘장소’에서 고르면 여기에 핀이 꽂혀요. ${arts.length}곳</p></div>
       <div class="mp-wrap"><div class="mp-map" id="mpMap"><p class="muted small">지도를 불러오는 중…</p></div>
@@ -267,8 +343,9 @@
     try {
       const L = await YT.loadLeaflet(); const el = box.querySelector('#mpMap'); el.innerHTML = '';
       const mp = L.map(el).setView([36.4, 127.8], 7); tiles(L, mp); const marks = {};
+      for (const a of arts) { const st = stopsOf(a); if (st.length > 1) { L.polyline(st.map((p) => [p.lat, p.lng]), { color: '#3B4C7A', weight: 2.5, opacity: 0.6, dashArray: '6 6' }).addTo(mp); st.slice(1).forEach((p) => L.circleMarker([p.lat, p.lng], { radius: 6, color: '#3B4C7A', weight: 2, fillOpacity: 0.85, fillColor: '#fff' }).addTo(mp).bindTooltip(esc(p.name))); } }
       for (const a of arts) marks[a.id] = L.marker([a.place.lat, a.place.lng]).addTo(mp).bindPopup(`<div class="mp-pop">${a.photo ? `<img src="${YT.thumbUrl(a.photo)}" alt="">` : ''}<b>${esc(a.place.name)}</b><a href="#/article/${a.id}">${esc(a.title)}</a><small>${esc(YT.shortDate(a.published_at || a.updated))}</small></div>`);
-      if (arts.length) mp.fitBounds(L.latLngBounds(arts.map((a) => [a.place.lat, a.place.lng])).pad(0.3), { maxZoom: 12 });
+      if (arts.length) mp.fitBounds(L.latLngBounds(arts.flatMap((a) => stopsOf(a).map((p) => [p.lat, p.lng]))).pad(0.3), { maxZoom: 12 });
       const go = (id) => { const a = arts.find((x) => x.id === id); if (!a) return; mp.setView([a.place.lat, a.place.lng], 13); marks[id].openPopup(); };
       if (focus) setTimeout(() => go(focus), 300);
       box.querySelector('.mp-list').onclick = (e) => { const b = e.target.closest('[data-go]'); if (b) go(b.dataset.go); };
