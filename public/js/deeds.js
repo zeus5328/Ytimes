@@ -71,7 +71,7 @@
     view.className = 'container';
     if (!YT.state.user) return YT.needLogin(view, '가족 계정으로 로그인하면 착한 일을 올릴 수 있어요.');
     if (!YT.can('reporter')) { view.innerHTML = YT.pageHead('', '착한 일', '착한 일을 하고 포인트를 받아요.') + '<div class="empty-state"><h2>기자 계정에서 할 수 있어요</h2><p class="muted">관리자에게 기자 권한을 부탁해 보세요.</p></div>'; return; }
-    view.innerHTML = YT.subTabs('desk') + YT.pageHead('', '착한 일', '집안일을 돕거나 착한 일을 했다면 올려 주세요. 부모님이 확인하면 포인트가 들어와요.') + '<div id="ddBox" class="g-box"><p class="muted">불러오는 중…</p></div>';
+    view.innerHTML = YT.subTabs('deeds') + YT.pageHead('', '착한 일', '집안일을 돕거나 착한 일을 했다면 올려 주세요. 부모님이 확인하면 포인트가 들어와요.') + '<div id="ddBox" class="g-box"><p class="muted">불러오는 중…</p></div>';
     try { await page(view.querySelector('#ddBox')); } catch (err) { view.querySelector('#ddBox').innerHTML = `<div class="empty-state"><p>${esc(err.message || '불러오지 못했어요.')}</p></div>`; }
   });
 })();
