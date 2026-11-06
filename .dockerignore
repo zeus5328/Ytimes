@@ -1,0 +1,11 @@
+data
+node_modules
+*.tgz
+*.zip
+.git
+ytimes-github
+vercel-static
+.vercel
+api
+scripts
+vercel.json

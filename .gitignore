@@ -1,0 +1,11 @@
+data/
+node_modules/
+*.tgz
+*.zip
+*.log
+.DS_Store
+.env
+.env.*
+ytimes-github/
+vercel-static/
+.vercel/

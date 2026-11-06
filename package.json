@@ -1,0 +1,18 @@
+{
+  "name": "unitimes",
+  "version": "2.0.0",
+  "private": true,
+  "description": "유니 타임즈 — 가족이 함께 만드는 신문 (집 서버: 외부 패키지 없이 실행 · 클라우드: Vercel + Neon)",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "vercel-build": "node scripts/vercel-static.js"
+  },
+  "engines": {
+    "node": ">=22.13"
+  },
+  "dependencies": {
+    "pg": "^8.16.0",
+    "@vercel/blob": "^2.0.0"
+  }
+}
