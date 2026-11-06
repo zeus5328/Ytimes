@@ -1635,7 +1635,7 @@ if (getSetting('coupons_seeded', '') !== '1') { // 처음 한 번만 예시 쿠�
    ['늦잠 자기', '주말 아침 늦잠을 허락받아요.', 5000, '😴']].forEach(([t, d, p, ic], i) =>
     run('INSERT INTO coupons(id,title,description,price,stock,per_user,icon,active,sort,created) VALUES(?,?,?,?,?,?,?,?,?,?)', uid(), t, d, p, -1, 0, ic, 1, i, now()));
 }
-const pointRate = () => ({ lead: Math.max(0, parseInt(getSetting('points_article', '1000'), 10) || 0), co: Math.max(0, parseInt(getSetting('points_coauthor', '500'), 10) || 0) });
+const pointRate = () => ({ lead: Math.max(0, parseInt(getSetting('points_article', '2000'), 10) || 0), co: Math.max(0, parseInt(getSetting('points_coauthor', '500'), 10) || 0) });
 const balance = (userId) => get('SELECT COALESCE(SUM(amount),0) s FROM points WHERE user_id=?', userId).s;
 function addPoints(userId, amount, reason, kind = 'manual', ref = '', byId = '') {
   if (!userId || !amount) return false;
