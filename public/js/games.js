@@ -68,7 +68,7 @@
 
   const needReporter = (box) => {
     if (YT.can('reporter')) return false;
-    box.innerHTML = YT.state.user ? '<div class="empty-state"><h2>기자만 할 수 있어요</h2><p class="muted">로또와 즉석 복권은 원고료 포인트로 사요. 기사를 쓰는 기자 계정이 필요해요.</p></div>'
+    box.innerHTML = YT.state.user ? '<div class="empty-state"><h2>기자만 할 수 있어요</h2><p class="muted">로또복권과 즉석 복권은 원고료 포인트로 사요. 기사를 쓰는 기자 계정이 필요해요.</p></div>'
       : `<div class="empty-state"><h2>기자 계정으로 로그인해 주세요</h2><a class="btn primary" href="#/login?next=${encodeURIComponent(location.hash)}">로그인</a></div>`;
     return true;
   };
@@ -113,7 +113,7 @@
       box.querySelectorAll('[data-rm]').forEach((b) => b.onclick = () => { queue.splice(+b.dataset.rm, 1); draw(); });
       const buy = async (sets, btn) => {
         btn.disabled = true;
-        try { const r = await YT.post('/api/games/lotto', { sets }); YT.toast(`${r.round}회 로또 ${r.tickets.length}장을 샀어요. 행운을 빌어요!`); lotto(box); }
+        try { const r = await YT.post('/api/games/lotto', { sets }); YT.toast(`${r.round}회 로또복권 ${r.tickets.length}장을 샀어요. 행운을 빌어요!`); lotto(box); }
         catch (err) { YT.err(err); btn.disabled = false; }
       };
       const bb = box.querySelector('#ltBuy'); if (bb) bb.onclick = () => buy(queue, bb);
@@ -122,7 +122,7 @@
     };
     draw();
   }
-  const confForm = (c) => `<details class="pt-sec help"><summary>관리자 · 로또 설정</summary><form class="form-row" id="gConf">
+  const confForm = (c) => `<details class="pt-sec help"><summary>관리자 · 로또복권 설정</summary><form class="form-row" id="gConf">
       <label>한 장 가격<input class="input" name="lotto_price" inputmode="numeric" value="${c.price}"></label><label>한 회 최대 장수<input class="input" name="lotto_max" inputmode="numeric" value="${c.max}"></label>
       ${[1, 2, 3, 4, 5].map((k) => `<label>${k}등 당첨금<input class="input" name="lotto_p${k}" inputmode="numeric" value="${c.prizes[k]}"></label>`).join('')}<button class="btn">저장</button></form></details>`;
   const bindConf = (box, again) => {
@@ -180,6 +180,6 @@
     try { await fn(view.querySelector('#gBox')); } catch (err) { view.querySelector('#gBox').innerHTML = `<div class="empty-state"><p>${esc(err.message || '불러오지 못했어요.')}</p></div>`; }
   };
   YT.addRoute('/games', mount('누가 설거지할까? 사다리를 타 보세요. 참가자와 결과는 이 기기에 기억돼요.', ladder));
-  YT.addRoute('/games/lotto', mount('원고료 포인트로 사는 우리 가족 로또. 매주 토요일 저녁 8시에 추첨해요.', lotto));
+  YT.addRoute('/games/lotto', mount('원고료 포인트로 사는 우리 가족 로또복권. 매주 토요일 저녁 8시에 추첨해요.', lotto));
   YT.addRoute('/games/scratch', mount('포인트로 사서 바로 긁어 보는 즉석 복권이에요.', scratch));
 })();

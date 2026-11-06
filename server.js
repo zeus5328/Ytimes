@@ -1778,8 +1778,8 @@ function settleLotto() {
       const rank = hit === 6 ? 1 : hit === 5 && bonusHit ? 2 : hit === 5 ? 3 : hit === 4 ? 4 : hit === 3 ? 5 : 0;
       const prize = rank ? conf.prizes[rank] : 0;
       if (run('UPDATE lotto_tickets SET settled=1, rank=?, prize=? WHERE id=? AND settled=0', rank, prize, t.id).changes && prize) {
-        addPoints(t.user_id, prize, `로또 ${r}회 ${rank}등 당첨`, 'lotto_win', t.id);
-        notify([t.user_id], { kind: 'points', title: `로또 ${r}회 ${rank}등 당첨! ${prize.toLocaleString('ko-KR')}포인트`, body: `당첨 번호 ${win.join(' ')} + ${d.bonus}`, link: '#/games/lotto' });
+        addPoints(t.user_id, prize, `로또복권 ${r}회 ${rank}등 당첨`, 'lotto_win', t.id);
+        notify([t.user_id], { kind: 'points', title: `로또복권 ${r}회 ${rank}등 당첨! ${prize.toLocaleString('ko-KR')}포인트`, body: `당첨 번호 ${win.join(' ')} + ${d.bonus}`, link: '#/games/lotto' });
       }
     }
   }
@@ -1797,7 +1797,7 @@ route('GET', '/api/games/lotto', 'reporter', ({ user }) => {
 });
 route('POST', '/api/games/lotto', 'reporter', ({ user, body }) => {
   const r = openRound(); const conf = lottoConf();
-  if (!conf.price) fail(400, '지금은 로또를 팔지 않아요.');
+  if (!conf.price) fail(400, '지금은 로또복권을 팔지 않아요.');
   const sets = (Array.isArray(body.sets) ? body.sets : [body.numbers]).slice(0, 5);
   if (!sets.length) fail(400, '번호를 골라 주세요.');
   const have = get('SELECT COUNT(*) c FROM lotto_tickets WHERE user_id=? AND round=?', user.id, r).c;
@@ -1811,7 +1811,7 @@ route('POST', '/api/games/lotto', 'reporter', ({ user, body }) => {
     if (n.length !== 6) fail(400, '1부터 45까지 서로 다른 번호 6개를 골라 주세요.');
     const id = uid();
     run('INSERT INTO lotto_tickets(id,user_id,round,numbers,auto,price,created) VALUES(?,?,?,?,?,?,?)', id, user.id, r, n.join(','), auto ? 1 : 0, conf.price, now());
-    addPoints(user.id, -conf.price, `로또 ${r}회 구입`, 'lotto_buy', id);
+    addPoints(user.id, -conf.price, `로또복권 ${r}회 구입`, 'lotto_buy', id);
     out.push({ id, numbers: n, auto });
   }
   return { ok: true, round: r, tickets: out, balance: balance(user.id) };
