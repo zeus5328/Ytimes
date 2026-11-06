@@ -649,7 +649,7 @@ route('GET', '/api/stats', 'admin', () => {
   };
 });
 // 백업 되돌리기: 내려받은 JSON으로 글·일정 자료를 통째로 바꾼다 (가족 계정·비밀번호는 그대로)
-const RESTORE_TABLES = ['settings', 'articles', 'comments', 'reactions', 'events', 'timetables', 'albums', 'folder_links', 'cards', 'people', 'photos', 'polls', 'poll_votes', 'notes', 'items', 'audios'];
+const RESTORE_TABLES = ['settings', 'articles', 'comments', 'reactions', 'events', 'timetables', 'albums', 'folder_links', 'cards', 'people', 'photos', 'polls', 'poll_votes', 'notes', 'items', 'audios', 'points', 'coupons', 'coupon_issues'];
 // 전체 백업에 넣는 사진·소리 파일 이름 (사진 원본·미리보기·소리)
 const UPLOAD_NAME = /^[\w-]{6,80}(\.(jpe?g|png|webp|gif|webm|ogg|m4a|aac|mp3|wav)|_t\.jpg)$/i;
 function uploadNames() {
@@ -843,6 +843,7 @@ route('POST', '/api/articles/:id/action', 'reporter', ({ params, body, user }) =
   if (body.action === 'changes') notify(writers(a).filter((id) => id !== user.id), { kind: 'changes', title: `수정 요청 · ${a.title}`, body: str(body.note, 200) || '편집실에서 검토 메모를 확인하세요.', link: '#/newsroom' });
   if (body.action === 'approve') notify(writers(a).filter((id) => id !== user.id), { kind: 'approved', title: `승인됐어요 · ${a.title}`, body: `${user.display_name}님이 승인했어요.`, link });
   if (body.action === 'publish') {
+    payManuscript(get('SELECT * FROM articles WHERE id=?', a.id));
     notify(writers(a).filter((id) => id !== user.id), { kind: 'published', title: `신문에 실렸어요 · ${a.title}`, body: '가족들이 읽을 수 있어요.', link });
     notify(usersWith('subscriber', user.id).filter((id) => !writers(a).includes(id)), { kind: 'news', title: `새 기사 · ${a.title}`, body: `${a.section || ''} · ${a.author_name || ''}`, link, ukey: `news:${a.id}` });
   }
@@ -1616,6 +1617,128 @@ figcaption{font-size:.8rem;color:#545C55;margin-top:.25rem}audio{width:100%}.au{
 ${arts.length ? arts.map(art).join('') : '<p class="msg">이 호에는 아직 실린 기사가 없어요.</p>'}
 <p class="foot">${h(l.label ? l.label + '님께 보내 드린 ' : '')}이 링크는 ${h(l.expires)}까지 열려요.<br>${h(site)} — 가족이 함께 만드는 신문</p>`);
 }
+
+// ───────────────────────── 원고료 포인트 · 쿠폰
+// 기사가 처음 신문에 실리면 기자에게 원고료(포인트)를 준다. 모은 포인트로 가족이 정한 쿠폰을 산다.
+db.exec(`CREATE TABLE IF NOT EXISTS points (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, amount INTEGER NOT NULL, reason TEXT NOT NULL, kind TEXT NOT NULL DEFAULT 'manual',
+  ref TEXT DEFAULT '', by_id TEXT DEFAULT '', created TEXT NOT NULL);
+CREATE UNIQUE INDEX IF NOT EXISTS points_once ON points(user_id, kind, ref);
+CREATE TABLE IF NOT EXISTS coupons (id TEXT PRIMARY KEY, title TEXT NOT NULL, description TEXT DEFAULT '', price INTEGER NOT NULL, stock INTEGER DEFAULT -1,
+  per_user INTEGER DEFAULT 0, icon TEXT DEFAULT '', active INTEGER DEFAULT 1, sort INTEGER DEFAULT 0, created TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS coupon_issues (id TEXT PRIMARY KEY, coupon_id TEXT NOT NULL, user_id TEXT NOT NULL, title TEXT NOT NULL, price INTEGER NOT NULL,
+  code TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'issued', note TEXT DEFAULT '', created TEXT NOT NULL, used_at TEXT DEFAULT '', used_by TEXT DEFAULT '');`);
+if (getSetting('coupons_seeded', '') !== '1') { // 처음 한 번만 예시 쿠폰 몇 장 (관리자가 고치거나 지울 수 있음)
+  setSetting('coupons_seeded', '1');
+  if (!get('SELECT COUNT(*) c FROM coupons').c)
+  [['용돈 1,000원', '부모님께 보여 주면 용돈 1,000원으로 바꿔 줘요.', 3000, '💰'], ['게임 30분 더', '하루 게임(영상) 시간을 30분 늘려요.', 2000, '🎮'],
+   ['설거지 면제권', '오늘 설거지 당번을 한 번 쉬어요.', 3000, '🍽️'], ['저녁 메뉴 고르기', '이번 주 저녁 메뉴 하나를 내가 정해요.', 4000, '🍕'],
+   ['늦잠 자기', '주말 아침 늦잠을 허락받아요.', 5000, '😴']].forEach(([t, d, p, ic], i) =>
+    run('INSERT INTO coupons(id,title,description,price,stock,per_user,icon,active,sort,created) VALUES(?,?,?,?,?,?,?,?,?,?)', uid(), t, d, p, -1, 0, ic, 1, i, now()));
+}
+const pointRate = () => ({ lead: Math.max(0, parseInt(getSetting('points_article', '1000'), 10) || 0), co: Math.max(0, parseInt(getSetting('points_coauthor', '500'), 10) || 0) });
+const balance = (userId) => get('SELECT COALESCE(SUM(amount),0) s FROM points WHERE user_id=?', userId).s;
+function addPoints(userId, amount, reason, kind = 'manual', ref = '', byId = '') {
+  if (!userId || !amount) return false;
+  try { run('INSERT INTO points(id,user_id,amount,reason,kind,ref,by_id,created) VALUES(?,?,?,?,?,?,?,?)', uid(), userId, amount, str(reason, 120), kind, ref || uid(), byId || '', now()); return true; }
+  catch (e) { if (/UNIQUE|duplicate|unique/i.test(e.message)) return false; throw e; }
+}
+// 기사가 실릴 때 — 같은 기사로는 한 번만 (내렸다 다시 실어도 다시 주지 않음)
+function payManuscript(a) {
+  const r = pointRate(); const paid = [];
+  const lead = a.author_id; const cos = coIds(a).filter((id) => id !== lead);
+  if (lead && get('SELECT 1 FROM users WHERE id=?', lead) && r.lead && addPoints(lead, r.lead, `원고료 · ${a.title}`, 'article', a.id)) paid.push([lead, r.lead]);
+  for (const id of cos) if (get('SELECT 1 FROM users WHERE id=?', id) && r.co && addPoints(id, r.co, `원고료(함께 쓴 기사) · ${a.title}`, 'article', a.id)) paid.push([id, r.co]);
+  for (const [id, n] of paid) notify([id], { kind: 'points', title: `원고료 ${n.toLocaleString('ko-KR')}포인트가 들어왔어요`, body: a.title, link: '#/points' });
+  return paid;
+}
+const issueOut = (x) => ({ ...x, user_name: (get('SELECT display_name FROM users WHERE id=?', x.user_id) || {}).display_name || '(없는 계정)' });
+const couponCode = () => { const A = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; let s = ''; for (let i = 0; i < 8; i++) s += A[crypto.randomBytes(1)[0] % A.length]; return s.slice(0, 4) + '-' + s.slice(4); };
+
+route('GET', '/api/points', 'reporter', ({ user, query }) => {
+  const admin = isRole(user, 'admin');
+  const target = admin && query.user ? query.user : user.id;
+  const coupons = all('SELECT * FROM coupons ORDER BY sort, price').filter((c) => admin || c.active).map((c) => ({ ...c,
+    issued: get('SELECT COUNT(*) c FROM coupon_issues WHERE coupon_id=? AND status<>?', c.id, 'cancelled').c,
+    mine: get('SELECT COUNT(*) c FROM coupon_issues WHERE coupon_id=? AND user_id=? AND status<>?', c.id, user.id, 'cancelled').c }));
+  const out = { balance: balance(target), rate: pointRate(), coupons,
+    history: all('SELECT id, amount, reason, kind, ref, created FROM points WHERE user_id=? ORDER BY created DESC LIMIT 100', target),
+    issues: all('SELECT * FROM coupon_issues WHERE user_id=? ORDER BY created DESC', target),
+    earned: get('SELECT COALESCE(SUM(amount),0) s FROM points WHERE user_id=? AND amount>0', target).s };
+  if (admin) {
+    out.members = all('SELECT id, display_name, role FROM users ORDER BY created').filter((u) => ROLE_RANK[u.role] >= ROLE_RANK.reporter)
+      .map((u) => ({ ...u, balance: balance(u.id), articles: get("SELECT COUNT(*) c FROM points WHERE user_id=? AND kind='article'", u.id).c }));
+    out.pending = all("SELECT * FROM coupon_issues WHERE status='issued' ORDER BY created").map(issueOut);
+    out.recent = all("SELECT * FROM coupon_issues WHERE status<>'issued' ORDER BY COALESCE(NULLIF(used_at,''), created) DESC LIMIT 30").map(issueOut);
+    out.unpaid = all("SELECT * FROM articles WHERE deleted=0 AND status='published' AND author_id IS NOT NULL AND author_id<>''").filter((a) => !get("SELECT 1 FROM points WHERE kind='article' AND ref=? AND user_id=?", a.id, a.author_id)).length;
+  }
+  return out;
+});
+// 쿠폰 사기
+route('POST', '/api/coupons/:id/buy', 'reporter', ({ user, params }) => {
+  const c = get('SELECT * FROM coupons WHERE id=? AND active=1', params.id) || fail(404, '지금은 살 수 없는 쿠폰이에요.');
+  if (c.stock >= 0 && get("SELECT COUNT(*) c FROM coupon_issues WHERE coupon_id=? AND status<>'cancelled'", c.id).c >= c.stock) fail(400, '쿠폰이 모두 팔렸어요.');
+  if (c.per_user > 0 && get("SELECT COUNT(*) c FROM coupon_issues WHERE coupon_id=? AND user_id=? AND status<>'cancelled'", c.id, user.id).c >= c.per_user) fail(400, `이 쿠폰은 한 사람이 ${c.per_user}장까지 살 수 있어요.`);
+  if (balance(user.id) < c.price) fail(400, `포인트가 모자라요. (${(c.price - balance(user.id)).toLocaleString('ko-KR')}포인트 더 필요해요)`);
+  const id = uid(); const code = couponCode();
+  run('INSERT INTO coupon_issues(id,coupon_id,user_id,title,price,code,status,created) VALUES(?,?,?,?,?,?,?,?)', id, c.id, user.id, c.title, c.price, code, 'issued', now());
+  addPoints(user.id, -c.price, `쿠폰 구입 · ${c.title}`, 'coupon', id);
+  notify(usersWith('admin', user.id), { kind: 'coupon', title: `쿠폰 구입 · ${c.title}`, body: `${user.display_name}님이 쿠폰을 샀어요. 사용할 때 ‘사용 완료’를 눌러 주세요.`, link: '#/points/manage' });
+  return { ok: true, issue: get('SELECT * FROM coupon_issues WHERE id=?', id), balance: balance(user.id) };
+});
+// 쿠폰 쓰기(관리자가 확인) · 취소(포인트 돌려줌)
+route('POST', '/api/coupon-issues/:id', 'reporter', ({ user, params, body }) => {
+  const x = get('SELECT * FROM coupon_issues WHERE id=?', params.id) || fail(404, '쿠폰을 찾을 수 없어요.');
+  const admin = isRole(user, 'admin');
+  if (x.status !== 'issued') fail(400, '이미 사용했거나 취소한 쿠폰이에요.');
+  if (body.action === 'use') {
+    if (!admin) fail(403, '쿠폰 사용은 관리자(부모님)가 확인해 줘요.');
+    run("UPDATE coupon_issues SET status='used', used_at=?, used_by=?, note=? WHERE id=?", now(), user.id, str(body.note, 200), x.id);
+    notify([x.user_id], { kind: 'coupon', title: `쿠폰을 사용했어요 · ${x.title}`, body: `${user.display_name}님이 사용 완료로 표시했어요.`, link: '#/points' });
+  } else if (body.action === 'cancel') {
+    if (!admin && x.user_id !== user.id) fail(403, '권한이 없어요.');
+    run("UPDATE coupon_issues SET status='cancelled', used_at=?, used_by=?, note=? WHERE id=?", now(), user.id, str(body.note, 200), x.id);
+    addPoints(x.user_id, x.price, `쿠폰 취소 환불 · ${x.title}`, 'refund', x.id, user.id);
+    if (x.user_id !== user.id) notify([x.user_id], { kind: 'coupon', title: `쿠폰이 취소되고 포인트를 돌려받았어요 · ${x.title}`, body: `${x.price.toLocaleString('ko-KR')}포인트`, link: '#/points' });
+  } else fail(400, '알 수 없는 요청이에요.');
+  return { ok: true };
+});
+// 관리자: 쿠폰 만들기·고치기·지우기
+const couponBody = (b) => [str(b.title, 40) || fail(400, '쿠폰 이름을 적어 주세요.'), str(b.description, 200), Math.max(0, Math.min(1e7, parseInt(b.price, 10) || 0)),
+  b.stock === '' || b.stock == null ? -1 : Math.max(-1, parseInt(b.stock, 10)), Math.max(0, parseInt(b.per_user, 10) || 0), str(b.icon, 8), b.active === false || b.active === 0 || b.active === '0' ? 0 : 1];
+route('POST', '/api/coupons', 'admin', ({ body }) => {
+  const [t, d, p, st, pu, ic, ac] = couponBody(body); if (!p) fail(400, '쿠폰 가격(포인트)을 적어 주세요.');
+  const id = uid(); run('INSERT INTO coupons(id,title,description,price,stock,per_user,icon,active,sort,created) VALUES(?,?,?,?,?,?,?,?,?,?)', id, t, d, p, st, pu, ic, ac, get('SELECT COUNT(*) c FROM coupons').c, now());
+  return { ok: true, id };
+});
+route('PUT', '/api/coupons/:id', 'admin', ({ body, params }) => {
+  get('SELECT 1 FROM coupons WHERE id=?', params.id) || fail(404, '쿠폰을 찾을 수 없어요.');
+  const [t, d, p, st, pu, ic, ac] = couponBody(body); if (!p) fail(400, '쿠폰 가격(포인트)을 적어 주세요.');
+  run('UPDATE coupons SET title=?, description=?, price=?, stock=?, per_user=?, icon=?, active=? WHERE id=?', t, d, p, st, pu, ic, ac, params.id);
+  return { ok: true };
+});
+route('DELETE', '/api/coupons/:id', 'admin', ({ params }) => {
+  if (get('SELECT 1 FROM coupon_issues WHERE coupon_id=?', params.id)) { run('UPDATE coupons SET active=0 WHERE id=?', params.id); return { ok: true, message: '이미 산 사람이 있어 지우지 않고 판매만 멈췄어요.' }; }
+  run('DELETE FROM coupons WHERE id=?', params.id); return { ok: true, message: '쿠폰을 지웠어요.' };
+});
+// 관리자: 포인트 직접 주기·빼기, 원고료 금액, 지난 기사 원고료 한꺼번에
+route('POST', '/api/points/grant', 'admin', ({ body, user }) => {
+  const to = get('SELECT id, display_name FROM users WHERE id=?', body.user_id) || fail(404, '가족 계정을 찾을 수 없어요.');
+  const n = parseInt(body.amount, 10); if (!n || Math.abs(n) > 1e7) fail(400, '포인트를 적어 주세요. (빼려면 앞에 - 를 붙여요)');
+  if (n < 0 && balance(to.id) + n < 0) fail(400, `${to.display_name}님의 포인트(${balance(to.id).toLocaleString('ko-KR')})보다 많이 뺄 수 없어요.`);
+  addPoints(to.id, n, str(body.reason, 80) || (n > 0 ? '보너스' : '포인트 조정'), n > 0 ? 'bonus' : 'adjust', '', user.id);
+  if (n > 0) notify([to.id], { kind: 'points', title: `${n.toLocaleString('ko-KR')}포인트를 받았어요`, body: str(body.reason, 80) || '보너스', link: '#/points' });
+  return { ok: true, balance: balance(to.id) };
+});
+route('PUT', '/api/points/rate', 'admin', ({ body }) => {
+  setSetting('points_article', Math.max(0, Math.min(1e6, parseInt(body.lead, 10) || 0)));
+  setSetting('points_coauthor', Math.max(0, Math.min(1e6, parseInt(body.co, 10) || 0)));
+  return { ok: true, rate: pointRate() };
+});
+route('POST', '/api/points/backpay', 'admin', () => {
+  let n = 0, sum = 0;
+  for (const a of all("SELECT * FROM articles WHERE deleted=0 AND status='published' ORDER BY published_at")) for (const [, amt] of payManuscript(a)) { n++; sum += amt; }
+  return { ok: true, message: n ? `지난 기사 원고료 ${n}건, 모두 ${sum.toLocaleString('ko-KR')}포인트를 줬어요.` : '줄 원고료가 없어요. (이미 모두 받았어요)' };
+});
 
 async function handle(req, res) {
   // 기본 보안 헤더 — HTTPS(프록시 뒤 포함)로 접속하면 로그인 쿠키에 Secure도 붙인다
