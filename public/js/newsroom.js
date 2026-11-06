@@ -18,7 +18,30 @@
       '사진을 찍은 날: \n장소: \n\n사진 속 이야기\n\n이 사진을 고른 이유\n\n사진을 찍은 사람: '],
     '우리 집 날씨': ['가족의 기분과 분위기를 전하는 예보', '진짜 기상예보 대신 우리 가족의 마음 날씨를 써보세요. 맑음·구름 조금·비 온 뒤 무지개 등 자유롭게 표현하면 됩니다.',
       '오늘 우리 집 마음 날씨: ☀️ 맑음\n\n가족의 기분 한 줄씩\n- \n- \n\n맑았던 순간\n\n잠깐 흐렸던 순간\n\n내일의 마음 예보\n\n함께 해볼 작은 약속'],
+    '편집장의 말': ['이달 신문을 여는 편집장의 글', '이번 호에 실린 이야기와 이달 우리 가족의 분위기를 짧게 소개해 주세요. 지면 맨 앞에 실려요.',
+      '이번 호를 펴내며\n\n이달 우리 가족은\n\n이번 호에서 꼭 읽어 볼 기사\n\n다음 달에 기대하는 일'],
+    '관찰 일기': ['날마다 지켜본 기록', '반려동물, 화분, 하늘처럼 하나를 정해 며칠 동안 지켜본 것을 날짜별로 적어 보세요. 사진을 곁들이면 더 좋아요.',
+      '관찰한 것: \n관찰한 사람: \n\n첫째 날 ( / )\n\n둘째 날 ( / )\n\n셋째 날 ( / )\n\n새로 알게 된 점\n\n궁금해진 점'],
+    '우리 집 단신': ['서너 줄로 전하는 짧은 소식', '이가 빠졌어요, 자전거를 배웠어요처럼 짧은 소식을 서너 줄로 전해요. 지면의 ‘짧은 소식’ 칸에 실려요.',
+      '소식: \n누가·언제: \n\n한 줄 덧붙이기'],
+    '칭찬 릴레이': ['가족을 칭찬하고 다음 사람에게 바통을', '가족 한 명을 골라 칭찬하고, 다음 칭찬을 이어 갈 사람을 지목해요.',
+      '오늘 칭찬할 사람: \n칭찬하는 사람: \n\n칭찬하고 싶은 일\n\n그때 내 마음\n\n다음 바통을 받을 사람: '],
   };
+  // 분류마다 한 줄 설명 (헷갈리지 않게)
+  const CAT_DESC = { 일상: '평범한 하루, 집에서 생긴 일', 여행: '나들이·여행 (장소를 넣으면 여행 지도에)', 성장: '키·이·처음 해 본 일처럼 자라는 이야기', 학교: '학교·학원·숙제·상장',
+    친구: '친구와 함께한 일', 기념일: '생일·결혼기념일 같은 우리 가족 기념일', '명절·행사': '설·추석·크리스마스·가족 행사', 요리: '레시피와 음식 이야기 (레시피북에 모여요)',
+    '놀이·취미': '놀이·만들기·취미 활동', '책·영화': '읽은 책·본 영화 소개', 운동: '운동·경기·체육 활동', 건강: '건강 관리 (병원 이야기는 꼭 필요한 만큼만)', 반려동물: '꾸리 같은 반려동물 이야기' };
+  // 제목으로 분류 추천 — 분류를 직접 고르지 않았을 때만
+  const CAT_HINTS = [[/생일|생신|결혼|기념일|돌잔치/, '기념일'], [/설날|추석|크리스마스|명절|어린이날|어버이날|송년|새해/, '명절·행사'], [/레시피|요리|만들어 먹|맛집|먹었/, '요리'],
+    [/여행|나들이|캠핑|바다|공원|박물관/, '여행'], [/학교|학원|숙제|시험|상장|선생님/, '학교'], [/꾸리|강아지|고양이|반려|산책/, '반려동물'], [/책|영화|독서|읽은/, '책·영화'],
+    [/축구|수영|태권도|줄넘기|운동|자전거|야구/, '운동'], [/병원|감기|건강|예방접종/, '건강'], [/친구/, '친구'], [/키|이가|처음|첫/, '성장'], [/놀이|레고|그림|만들기|게임/, '놀이·취미']];
+  const suggestCat = (t) => (CAT_HINTS.find(([re]) => re.test(t || '')) || [])[1];
+  // 인터뷰 질문 꾸러미 — ‘다른 질문’을 누르면 섞어서
+  const INTERVIEW_Q = ['요즘 가장 즐거운 일은 무엇인가요?', '최근 새롭게 도전한 일은요?', '어릴 적 꿈은 무엇이었나요?', '가장 기억에 남는 여행지는?', '우리 가족에게 가장 고마운 순간은?',
+    '요즘 가장 고민되는 것은?', '10년 뒤 나는 어떤 모습일까요?', '가장 좋아하는 음식과 그 이유는?', '하루 동안 무엇이든 할 수 있다면?', '가족에게 꼭 배우고 싶은 것은?',
+    '최근에 크게 웃었던 일은?', '나만의 스트레스 푸는 방법은?', '가장 아끼는 물건과 그 이유는?', '올해 꼭 해 보고 싶은 일 세 가지는?', '가족에게 전하고 싶은 한마디는요?',
+    '처음 해 본 일 중 가장 떨렸던 것은?', '좋아하는 책이나 영화는?', '나를 한 단어로 표현한다면?', '주말에 가장 하고 싶은 일은?', '어른이 되면(어릴 때) 해 보고 싶은 것은?'];
+  const interviewTpl = () => { const q = INTERVIEW_Q.slice().sort(() => Math.random() - 0.5).slice(0, 4); return `오늘의 인터뷰 주인공: \n인터뷰한 사람: \n\n${q.map((x) => `Q. ${x}\nA. `).join('\n\n')}`; };
 
   // ───────── 기사 흐름 공통 (편집실 목록·기사 화면에서 함께 씀)
   // 단계: 작성 중(초안·수정 요청) → 승인 대기 → 승인 완료 → 발행됨
@@ -270,6 +293,7 @@
             <div class="ws-secs" id="secPick" role="radiogroup">${YT.state.sections.map((s) => `<label class="${s === st.section ? 'on' : ''}"><input type="radio" name="sec" value="${esc(s)}" ${s === st.section ? 'checked' : ''}><b>${esc(s)}</b><small>${esc(TEMPLATES[s] ? TEMPLATES[s][0] : '')}</small></label>`).join('')}</div>
             <div class="ws-two"><label>분류<select class="select" id="wCat">${YT.state.categories.map((c) => `<option ${c === st.category ? 'selected' : ''}>${esc(c)}</option>`).join('')}</select></label>
               <label>발행월<select class="select" id="wMonth">${months.map((m) => `<option value="${m}" ${m === st.issue_month ? 'selected' : ''}>${YT.monthLabel(m)}호</option>`).join('')}</select></label></div>
+            <p class="muted small" id="catDesc"></p><div id="hlWarn"></div>
           </section>
           <section class="ws"><h3>등장 인물 <small>가족 앨범에 연결돼요</small></h3>
             <div class="tag-in" id="tagBox"><span id="tagChips"></span><input id="tagInput" list="tagList" placeholder="이름 입력 후 Enter" aria-label="등장 인물 추가" autocomplete="off"></div>
@@ -290,7 +314,12 @@
     // ── 제목: 자동 높이, Enter → 본문으로
     const titleEl = YT.$('#wTitle');
     const grow = (el) => { el.style.height = 'auto'; el.style.height = el.scrollHeight + 'px'; };
-    titleEl.oninput = () => { st.title = titleEl.value.replace(/\n/g, ' '); if (titleEl.value !== st.title) titleEl.value = st.title; grow(titleEl); markDirty(); };
+    let catTouched = !!a || !!query.category;
+    titleEl.oninput = () => {
+      st.title = titleEl.value.replace(/\n/g, ' '); if (titleEl.value !== st.title) titleEl.value = st.title; grow(titleEl); markDirty();
+      const sug = !catTouched && suggestCat(st.title); // 제목으로 분류 추천
+      if (sug && sug !== st.category && YT.state.categories.includes(sug)) { st.category = sug; YT.$('#wCat').value = sug; kicker(); catDesc(); }
+    };
     titleEl.onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); const t = YT.$('.wr-text'); if (t) { t.focus(); t.setSelectionRange(0, 0); } } };
 
     const kicker = () => { YT.$('#wrKicker').innerHTML = `<b>${esc(st.section)}</b> · ${esc(st.category)} · ${esc(YT.monthLabel(st.issue_month))}호 <span>바꾸기</span>`; };
@@ -475,8 +504,18 @@
     };
     drawPlace();
     YT.$('#helpBtn').onclick = (e) => { const h = YT.$('#wrHelp'); h.hidden = !h.hidden; e.currentTarget.setAttribute('aria-expanded', !h.hidden); };
-    YT.$('#tplBtn').onclick = () => {
-      const tpl = TEMPLATES[st.section] ? TEMPLATES[st.section][2] : '';
+    YT.$('#tplBtn').onclick = async () => {
+      let tpl = TEMPLATES[st.section] ? TEMPLATES[st.section][2] : '';
+      if (st.section === '인(人)터뷰') tpl = interviewTpl(); // 누를 때마다 다른 질문
+      if (st.section === '우리 집 날씨') { // 가족 광장의 기분 날씨를 불러와 채운다
+        try {
+          const { notes } = await YT.api('/api/notes?month=' + st.issue_month); const W = YT.MOOD_W || {};
+          const ns = notes.filter((n) => W[n.mood]); const cnt = {}; ns.forEach((n) => { cnt[n.mood] = (cnt[n.mood] || 0) + 1; });
+          const top = Object.entries(cnt).sort((x, y) => y[1] - x[1])[0];
+          const by = {}; ns.forEach((n) => { (by[n.name] = by[n.name] || []).push(n.mood); });
+          if (top) tpl = `이달 우리 집 마음 날씨: ${top[0]} ${W[top[0]][0]} (한마디 ${ns.length}개 중 ${top[1]}번)\n\n가족의 기분 한 줄씩\n${Object.entries(by).map(([nm, ms]) => { const c = {}; ms.forEach((m) => { c[m] = (c[m] || 0) + 1; }); const b = Object.entries(c).sort((x, y) => y[1] - x[1])[0][0]; return `- ${nm}: ${W[b][0]}(${W[b][1]})`; }).join('\n')}\n\n맑았던 순간\n\n잠깐 흐렸던 순간\n\n다음 달 마음 예보\n\n함께 해볼 작은 약속`;
+        } catch {}
+      }
       const empty = !st.blocks.some((b) => b.type !== 'text' || b.text.trim());
       if (!empty && !YT.confirm(`‘${st.section}’ 작성 틀을 본문 맨 끝에 붙일까요?`)) return;
       if (empty) st.blocks = [{ type: 'text', text: tpl }]; else st.blocks.push({ type: 'text', text: tpl });
@@ -484,12 +523,24 @@
     };
 
     // ── 옆 칸: 코너·분류·발행월
-    YT.$('#secPick').onchange = (e) => { st.section = e.target.value; YT.$$('#secPick label').forEach((l) => l.classList.toggle('on', l.querySelector('input').checked)); kicker(); markDirty(); };
+    YT.$('#secPick').onchange = async (e) => {
+      st.section = e.target.value; YT.$$('#secPick label').forEach((l) => l.classList.toggle('on', l.querySelector('input').checked)); kicker(); markDirty();
+      if (st.section === '헤드라인') headlineCheck();
+    };
+    // 한 달에 헤드라인은 한 편 — 이미 있으면 알려 준다 (1면·지면 맨 위에는 하나만 실려요)
+    const headlineCheck = async () => {
+      try { const list = await YT.getArticles(true, true); const other = list.find((x) => x.section === '헤드라인' && x.issue_month === st.issue_month && (!a || x.id !== a.id) && x.status !== 'draft');
+        const box = YT.$('#hlWarn'); if (box) box.innerHTML = other && st.section === '헤드라인' ? `<p class="ws-warn">${YT.monthLabel(st.issue_month)}호 헤드라인은 이미 ‘${esc(other.title)}’이 있어요. 1면에는 한 편만 크게 실려요.</p>` : '';
+      } catch {}
+    };
+    if (st.section === '헤드라인') headlineCheck();
     YT.$('#wCat').onchange = (e) => {
-      st.category = e.target.value; kicker(); markDirty();
+      st.category = e.target.value; catTouched = true; kicker(); markDirty(); catDesc();
       if (st.category === '요리' && !st.blocks.some((b) => b.type !== 'text' || b.text.trim())) { st.blocks = [{ type: 'text', text: RECIPE_TPL }]; drawBlocks({ i: 0, pos: 0 }); YT.toast('레시피 틀을 넣었어요. 레시피북에 모여요.'); }
     };
-    YT.$('#wMonth').onchange = (e) => { st.issue_month = e.target.value; kicker(); markDirty(); };
+    YT.$('#wMonth').onchange = (e) => { st.issue_month = e.target.value; kicker(); markDirty(); if (st.section === '헤드라인') headlineCheck(); };
+    const catDesc = () => { const el = YT.$('#catDesc'); if (el) el.textContent = CAT_DESC[st.category] || ''; };
+    catDesc();
 
     // ── 등장 인물 칩
     const tagInput = YT.$('#tagInput');

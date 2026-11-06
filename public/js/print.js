@@ -95,7 +95,8 @@
     const seen = new Set(); const occ = occ0.filter((o) => { const k = o.date + '|' + o.title; if (seen.has(k)) return false; seen.add(k); return true; });
 
     const lead = arts.find((a) => a.section === '헤드라인') || arts.find((a) => a.photo) || arts[0];
-    const rest = arts.filter((a) => a !== lead);
+    const editorCol = arts.find((a) => a !== lead && a.section === '편집장의 말'); // 편집장의 말은 지면 첫머리에
+    const rest = arts.filter((a) => a !== lead && a !== editorCol);
     const photoPick = rest.find((a) => a.section === '포토제닉' && a.photo);
     const weather = rest.find((a) => a.section === '우리 집 날씨');
     const others = rest.filter((a) => a !== photoPick && a !== weather);
@@ -104,7 +105,7 @@
     const special = occ.filter((o) => o.kind !== 'event');
     const plain = occ.filter((o) => o.kind === 'event');
     const photos = arts.reduce((n, a) => n + (a.photo ? 1 : 0) + (a.blocks || []).filter((b) => b.type === 'photo').length, 0);
-    const order = [lead, ...long, ...briefs, photoPick, weather].filter(Boolean);
+    const order = [lead, editorCol, ...long, ...briefs, photoPick, weather].filter(Boolean);
     const list = (items, fmt, max = 9) => `<ul class="np-list">${items.slice(0, max).map(fmt).join('')}${items.length > max ? `<li class="np-more">외 ${items.length - max}건</li>` : ''}</ul>`;
 
     view.className = 'container wide';
@@ -130,8 +131,9 @@
         ${leadHtml(lead)}
         <div class="np-grid">
           <div class="np-main">
+            ${editorCol ? `<article class="np-story np-editor"><div class="np-kicker">편집장의 말</div><h3>${esc(editorCol.title)}</h3><p>${YT.nl2br(clip(textOf(editorCol), 600))}</p><span class="np-byline">${esc(editorCol.author_name)}</span></article>` : ''}
             ${long.map(storyHtml).join('')}
-            ${photoPick ? `<article class="np-story photo-pick"><div class="np-kicker">포토제닉 · 이달의 한 장</div>${fig(photoPick, 'wide')}<p class="np-pick-cap"><b>${esc(photoPick.title)}</b> <span>${esc(photoPick.author_name)} 기자</span></p></article>` : ''}
+            ${photoPick ? `<article class="np-story photo-pick"><div class="np-kicker">${esc(photoPick.section)} · 이달의 한 장</div>${fig(photoPick, 'wide')}<p class="np-pick-cap"><b>${esc(photoPick.title)}</b> <span>${esc(photoPick.author_name)} 기자</span></p></article>` : ''}
             ${briefs.length ? `<section class="np-briefs"><h4 class="np-sec">짧은 소식</h4><div class="np-brief-grid">${briefs.map((a) => `<article class="np-brief"><h5>${esc(a.title)}</h5>${textOf(a) ? `<p>${YT.nl2br(clip(textOf(a), 200))}</p>` : ''}${qrBox(a)}<span class="np-byline">${esc(a.author_name)} 기자</span></article>`).join('')}</div></section>` : ''}
             ${long.length + briefs.length + (photoPick ? 1 : 0) < 3 && (mPolls.length || mNotes.length) ? `<section class="np-square"><h4 class="np-sec">가족 광장에서</h4>
               ${mPolls.map((p) => { const tot = p.counts.reduce((x, y) => x + y, 0) || 1; const best = Math.max(...p.counts);
@@ -148,7 +150,7 @@
               <div><b>${arts.length}</b><span>기사</span></div><div><b>${photos}</b><span>사진</span></div>
               <div><b>${special.length}</b><span>생일·기념일</span></div><div><b>${plain.length}</b><span>가족 일정</span></div></div></div>
             ${moodBox ? `<div class="np-box np-mood"><h4>이달의 기분 날씨</h4>${moodBox}</div>` : ''}
-            ${S.editor_note ? `<div class="np-box np-note"><h4>편집자의 말</h4><p>${YT.nl2br(S.editor_note)}</p></div>` : ''}
+            ${S.editor_note && !editorCol ? `<div class="np-box np-note"><h4>편집자의 말</h4><p>${YT.nl2br(S.editor_note)}</p></div>` : ''}
             <div class="np-box"><h4>이번 호 차례</h4><ol class="np-toc">${order.map((a) => `<li><span>${esc(a.title)}</span><small>${esc(a.section)}</small></li>`).join('')}</ol></div>
           </aside>
         </div>` : `<div class="np-empty">${YT.monthLabel(ym)}에 발행된 기사가 없어요.<br>편집실에서 기사를 발행하면 이 지면이 채워집니다.</div>`}

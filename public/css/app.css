@@ -275,6 +275,7 @@ textarea.input { resize: vertical; line-height: 1.75; }
 .corners { display: grid; grid-template-columns: repeat(4, 1fr); border-top: 1px solid var(--ink); border-bottom: 1px solid var(--line); }
 .corner { padding: .875rem 1rem 1rem; display: flex; flex-direction: column; gap: .25rem; color: var(--ink) !important; min-height: 7rem; border-left: 1px solid var(--line); }
 .corner:first-child { border-left: 0; padding-left: 0; }
+@media (min-width: 981px) { .corner:nth-child(4n+1) { border-left: 0; padding-left: 0; } .corner:nth-child(n+5) { border-top: 1px solid var(--line); } }
 .corner h3 { font-size: .75rem; color: var(--indigo); font-weight: 600; }
 .corner-article { font-family: var(--serif); font-weight: 600; font-size: .9375rem; line-height: 1.5; }
 .corner:hover .corner-article { text-decoration: underline; text-underline-offset: 3px; }
@@ -1299,6 +1300,7 @@ div.gl:hover { border-color: var(--line); }
   .cal-side, .post-preview { position: static; }
   .post-preview { max-width: 26rem; }
   .corners { grid-template-columns: 1fr 1fr; }
+  .corner:nth-child(odd) { border-left: 0; padding-left: 0; } .corner:nth-child(n+3) { border-top: 1px solid var(--line); }
 }
 @media (max-width: 680px) {
   .container { padding: 0 1rem; }
@@ -1330,6 +1332,7 @@ div.gl:hover { border-color: var(--line); }
 @media (max-width: 440px) {
   .card-grid { grid-template-columns: 1fr; }
   .corners { grid-template-columns: 1fr; }
+  .corner { border-left: 0; padding-left: 0; } .corner + .corner { border-top: 1px solid var(--line); }
   .corner { min-height: 0; }
 }
 
@@ -2116,3 +2119,10 @@ div.gl:hover { border-color: var(--line); }
 .dd-edit { display: grid; gap: .5rem; } .dd-row { align-items: end; padding-bottom: .5rem; border-bottom: 1px solid var(--line); }
 @media (max-width: 560px) { .dd-card { flex-wrap: wrap; } .dd-side { width: 100%; grid-auto-flow: column; justify-content: end; align-items: center; } }
 .dd-pts .input.sm { width: 5.5rem; flex: none; }
+
+/* 코너·분류 손보기 — 헤드라인 겹침 알림, 지면의 편집장의 말 */
+.ws-warn { margin: .5rem 0 0; padding: .5rem .625rem; border-radius: var(--r); background: color-mix(in srgb, var(--seal) 10%, var(--surface)); color: var(--ink); font-size: .8125rem; line-height: 1.5; }
+#catDesc { margin: .375rem 0 0; }
+.np-editor { border-top: 2px solid currentColor; border-bottom: 1px solid currentColor; padding: 10px 0 12px; margin-bottom: 14px; }
+.np-editor h3 { font-size: 17px; margin: 2px 0 6px; }
+.np-editor p { font-size: 13.5px; line-height: 1.7; margin: 0 0 6px; }

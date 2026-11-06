@@ -85,8 +85,10 @@ const uid = () => crypto.randomUUID();
 // 계정 7가지: 방문자(로그인 안 함) · 구독자 · 수습기자 · 평기자 · 시니어기자 · 편집장 · 관리자 (예전 '가족독자'는 구독자로 합침)
 const ROLE_RANK = { subscriber: 2, reporter: 3, staff: 4, senior: 5, editor: 6, admin: 7 };
 const ROLE_LABEL = { subscriber: '구독자', reporter: '수습기자', staff: '평기자', senior: '시니어기자', editor: '편집장', admin: '관리자' };
-const SECTIONS = ['헤드라인', '일반 기사', '인(人)터뷰', '포토제닉', '우리 집 날씨', '그림 일기'];
-const CATEGORIES = ['일상', '여행', '성장', '기념일', '요리', '학교', '친구', '병원', '동물'];
+const SECTIONS = ['헤드라인', '편집장의 말', '일반 기사', '인(人)터뷰', '포토제닉', '우리 집 날씨', '그림 일기', '관찰 일기', '우리 집 단신', '칭찬 릴레이'];
+const CATEGORIES = ['일상', '여행', '성장', '학교', '친구', '기념일', '명절·행사', '요리', '놀이·취미', '책·영화', '운동', '건강', '반려동물'];
+// 예전 분류 이름 → 새 이름 (기사를 저장하거나 백업을 되돌릴 때도 맞춰 줌)
+const CATEGORY_RENAME = { 병원: '건강', 동물: '반려동물' };
 const EMOJIS = ['❤️', '👏', '😂', '🥹', '🎉'];
 
 class HttpError extends Error { constructor(status, msg) { super(msg); this.status = status; } }
@@ -708,6 +710,7 @@ route('POST', '/api/restore', 'admin', ({ body }) => {
       }
       counts[t] = data[t].length;
     }
+    for (const [from, to] of Object.entries(CATEGORY_RENAME)) run('UPDATE articles SET category=? WHERE category=?', to, from); // 예전 분류 이름 맞추기
     db.exec('COMMIT');
     // 전체 백업(사진·소리 포함)이면 파일도 되살린다
     if (data.files && typeof data.files === 'object') counts.files = restoreFiles(data.files);
@@ -794,7 +797,7 @@ function articleFields(body) {
   if (!blocks.some(b => b.type === 'text' && b.text.trim()) && !blocks.some(b => b.type === 'photo')) fail(400, '기사 본문에 글을 입력해주세요.');
   return {
     title, blocks: JSON.stringify(blocks),
-    category: CATEGORIES.includes(body.category) ? body.category : '일상',
+    category: CATEGORIES.includes(CATEGORY_RENAME[body.category] || body.category) ? (CATEGORY_RENAME[body.category] || body.category) : '일상',
     section: SECTIONS.includes(body.section) ? body.section : '일반 기사',
     issue_month: /^\d{4}-\d{2}$/.test(body.issue_month || '') ? body.issue_month : now().slice(0, 7),
     hashtags: tagStr(body.hashtags), photo: body.photo ? str(body.photo, 60) : null, photo_caption: str(body.photo_caption, 300),
@@ -1647,6 +1650,7 @@ if (getSetting('coupons_seeded', '') !== '1') { // 처음 한 번만 예시 쿠�
     run('INSERT INTO coupons(id,title,description,price,stock,per_user,icon,active,sort,created) VALUES(?,?,?,?,?,?,?,?,?,?)', uid(), t, d, p, -1, 0, ic, 1, i, now()));
 }
 const CARD_DAILY = 5;
+const BONUS_SECTIONS = ['인(人)터뷰', '포토제닉']; // 손이 많이 가는 코너는 원고료를 더
 // 댓글·오늘의 한마디 포인트 — 하루에 받을 수 있는 횟수 (댓글 5번, 한마디 1번)
 const TALK_DAILY = { comment: 5, note: 1 };
 function talkPoints(user, kind, ref, reason, cap) {
@@ -1655,7 +1659,7 @@ function talkPoints(user, kind, ref, reason, cap) {
   return addPoints(user.id, amt, reason, kind, ref) ? amt : 0;
 }
 const CARD_NAMES = { letter: '편지', birthday: '생일 카드', anniversary: '기념일 카드', christmas: '크리스마스 카드', newyear: '연하장' };
-const pointRate = () => ({ talk: Math.max(0, parseInt(getSetting('points_talk', '300'), 10) || 0), card: Math.max(0, parseInt(getSetting('points_card', '1000'), 10) || 0), lead: Math.max(0, parseInt(getSetting('points_article', '2000'), 10) || 0), co: Math.max(0, parseInt(getSetting('points_coauthor', '500'), 10) || 0), bday: Math.max(0, parseInt(getSetting('points_birthday', '20000'), 10) || 0) });
+const pointRate = () => ({ bonus: Math.max(0, parseInt(getSetting('points_corner_bonus', '500'), 10) || 0), talk: Math.max(0, parseInt(getSetting('points_talk', '300'), 10) || 0), card: Math.max(0, parseInt(getSetting('points_card', '1000'), 10) || 0), lead: Math.max(0, parseInt(getSetting('points_article', '2000'), 10) || 0), co: Math.max(0, parseInt(getSetting('points_coauthor', '500'), 10) || 0), bday: Math.max(0, parseInt(getSetting('points_birthday', '20000'), 10) || 0) });
 const balance = (userId) => get('SELECT COALESCE(SUM(amount),0) s FROM points WHERE user_id=?', userId).s;
 function addPoints(userId, amount, reason, kind = 'manual', ref = '', byId = '') {
   if (!userId || !amount) return false;
@@ -1666,7 +1670,8 @@ function addPoints(userId, amount, reason, kind = 'manual', ref = '', byId = '')
 function payManuscript(a) {
   const r = pointRate(); const paid = [];
   const lead = a.author_id; const cos = coIds(a).filter((id) => id !== lead);
-  if (lead && get('SELECT 1 FROM users WHERE id=?', lead) && r.lead && addPoints(lead, r.lead, `원고료 · ${a.title}`, 'article', a.id)) paid.push([lead, r.lead]);
+  const bonus = BONUS_SECTIONS.includes(a.section) ? r.bonus : 0; const leadAmt = r.lead + bonus;
+  if (lead && get('SELECT 1 FROM users WHERE id=?', lead) && leadAmt && addPoints(lead, leadAmt, `원고료${bonus ? ` (${a.section} +${bonus.toLocaleString('ko-KR')})` : ''} · ${a.title}`, 'article', a.id)) paid.push([lead, leadAmt]);
   for (const id of cos) if (get('SELECT 1 FROM users WHERE id=?', id) && r.co && addPoints(id, r.co, `원고료(함께 쓴 기사) · ${a.title}`, 'article', a.id)) paid.push([id, r.co]);
   for (const [id, n] of paid) notify([id], { kind: 'points', title: `원고료 ${n.toLocaleString('ko-KR')}포인트가 들어왔어요`, body: a.title, link: '#/points' });
   return paid;
@@ -1756,6 +1761,7 @@ route('PUT', '/api/points/rate', 'admin', ({ body }) => {
   if (body.bday !== undefined) setSetting('points_birthday', Math.max(0, Math.min(1e6, parseInt(body.bday, 10) || 0)));
   if (body.card !== undefined) setSetting('points_card', Math.max(0, Math.min(1e6, parseInt(body.card, 10) || 0)));
   if (body.talk !== undefined) setSetting('points_talk', Math.max(0, Math.min(1e6, parseInt(body.talk, 10) || 0)));
+  if (body.bonus !== undefined) setSetting('points_corner_bonus', Math.max(0, Math.min(1e6, parseInt(body.bonus, 10) || 0)));
   return { ok: true, rate: pointRate() };
 });
 route('POST', '/api/points/backpay', 'admin', () => {
@@ -1811,6 +1817,12 @@ route('PUT', '/api/points/monthly', 'admin', ({ body }) => {
   setSetting('monthly_points', JSON.stringify(c)); setSetting('monthly_seeded', '1');
   return { ok: true, monthly: c };
 });
+
+// 분류 이름 바꾸기 — 한 번만 (병원 → 건강, 동물 → 반려동물)
+if (getSetting('categories_v2', '') !== '1') {
+  for (const [from, to] of Object.entries(CATEGORY_RENAME)) run('UPDATE articles SET category=? WHERE category=?', to, from);
+  setSetting('categories_v2', '1');
+}
 
 // ───────────────────────── 착한 일 — 아이가 한 일을 올리면 부모님(시니어기자 이상)이 확인하고 포인트를 준다
 db.exec(`CREATE TABLE IF NOT EXISTS deed_menu (id TEXT PRIMARY KEY, title TEXT NOT NULL, points INTEGER NOT NULL, icon TEXT DEFAULT '', active INTEGER DEFAULT 1, sort INTEGER DEFAULT 0, created TEXT NOT NULL);
