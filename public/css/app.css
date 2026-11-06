@@ -1877,3 +1877,5 @@ div.gl:hover { border-color: var(--line); }
 .rd-nav { position: sticky; bottom: 1rem; display: grid; grid-template-columns: 1fr 1fr; gap: .75rem; margin-top: 2rem; padding: .625rem; border-radius: var(--r-lg); background: color-mix(in srgb, var(--bg) 92%, transparent); backdrop-filter: blur(8px); box-shadow: 0 6px 20px rgba(37,45,40,.12); }
 .rd-btn { font-size: 1.1875rem; padding: .9rem 1rem; justify-content: center; }
 @media (max-width: 680px) { .rd h1 { font-size: 1.625rem; } .rd-xl h1 { font-size: 1.875rem; } .rd-nav { bottom: calc(4.25rem + env(safe-area-inset-bottom, 0px)); } }
+.su-name .su-email { font-size: .75rem; padding-top: .25rem; padding-bottom: .25rem; color: var(--muted); }
+.su-name .warn-text { color: var(--danger, #B4442F); }

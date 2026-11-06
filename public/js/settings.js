@@ -28,10 +28,10 @@
       <div class="row gap"><a class="btn primary" href="#/login?next=${encodeURIComponent('#/settings/me')}">로그인</a><a class="btn" href="#/settings/display">화면 설정으로</a></div>`);
     const roleLine = (YT.ROLES[u.role] || u.role_label || '').split(' · ');
     return `<div class="set-profile"><span class="set-avatar" aria-hidden="true">${esc(u.display_name.slice(0, 2))}</span>
-        <div><b>${esc(u.display_name)}</b><span>${esc(roleLine[0] || '')} · 아이디 ${esc(u.username)}</span></div>
+        <div><b>${esc(u.display_name)}</b><span>${esc(roleLine[0] || '')} · ${esc(u.username)}</span></div>
         <button class="btn small" id="logoutMe">로그아웃</button></div>`
       + panel('이름', `<form class="set-inline" id="nameForm"><label class="grow"><span class="vh">표시 이름</span><input class="input" name="display_name" maxlength="30" value="${esc(u.display_name)}" required></label><button class="btn primary">저장</button></form>`,
-        { desc: '기사·댓글·한마디에 이 이름으로 표시돼요. 아이디는 바꿀 수 없어요.' })
+        { desc: '기사·댓글·한마디에 이 이름으로 표시돼요. 로그인 이메일은 관리자가 ‘가족 계정’에서 바꿀 수 있어요.' })
       + panel('비밀번호 바꾸기', `<form class="form set-form" id="pwForm">
           <label>현재 비밀번호<input class="input" type="password" name="current" required autocomplete="current-password"></label>
           <label>새 비밀번호<input class="input" type="password" name="password" required minlength="6" autocomplete="new-password"></label>
@@ -131,22 +131,22 @@
     return `<div class="glance set-kpis">${kpi('가족 계정', users.length, '명')}${kpi('관리자 · 편집장', count('admin') + ' · ' + count('editor'), '')}${kpi('시니어 · 평 · 수습기자', count('senior') + ' · ' + count('staff') + ' · ' + count('reporter'), '')}${kpi('구독자', count('subscriber'), '명')}</div>`
       + panel('가족 계정', `<ul class="set-users">${users.map((u) => `<li data-u="${u.id}">
           <span class="set-avatar sm" aria-hidden="true">${esc(u.display_name.slice(0, 2))}</span>
-          <label class="su-name"><span class="vh">이름</span><input class="input sm" data-f="display_name" value="${esc(u.display_name)}"><small>${esc(u.username)}${u.id === YT.state.user.id ? ' · 나' : ''}</small></label>
+          <label class="su-name"><span class="vh">이름</span><input class="input sm" data-f="display_name" value="${esc(u.display_name)}"><input class="input sm su-email" type="email" data-f="username" value="${esc(u.username)}" aria-label="로그인 이메일" autocapitalize="off" spellcheck="false">${u.id === YT.state.user.id ? '<small>나</small>' : (u.username.includes('@') ? '' : '<small class="warn-text">이메일로 바꿔 주세요</small>')}</label>
           <label class="su-role"><span class="vh">권한</span><select class="select sm" data-f="role">${Object.entries(R).map(([k, l]) => `<option value="${k}" ${u.role === k ? 'selected' : ''}>${l.split(' · ')[0]}</option>`).join('')}</select></label>
           <label class="su-tt"><input type="checkbox" data-f="timetable_access" ${u.timetable_access || u.role === 'admin' ? 'checked' : ''} ${u.role === 'admin' ? 'disabled' : ''}> 시간표</label>
           <span class="su-btns"><button class="btn small" data-save>저장</button><button class="btn small" data-pw>비밀번호 초기화</button>${u.id !== YT.state.user.id ? '<button class="btn small danger ghost" data-rm>삭제</button>' : ''}</span></li>`).join('')}</ul>`,
         { desc: '이름·권한·시간표 열람을 바꾼 뒤 그 줄의 ‘저장’을 누르세요. 권한은 관리자 → 편집장 → 시니어기자 → 평기자 → 수습기자 → 구독자 순서이고, 위 단계는 아래 단계의 일을 모두 할 수 있어요.' })
-      + panel('새 가족 계정 만들기', `<form class="form-row" id="newUser"><label>이름<input class="input" name="display_name" required placeholder="서아"></label><label>아이디<input class="input" name="username" required placeholder="seoa" autocapitalize="off"></label>
+      + panel('새 가족 계정 만들기', `<form class="form-row" id="newUser"><label>이름<input class="input" name="display_name" required placeholder="서아"></label><label>이메일 (로그인 아이디)<input class="input" type="email" name="username" required placeholder="seoa@gmail.com" autocapitalize="off" spellcheck="false"></label>
           <label>임시 비밀번호<input class="input" name="password" required minlength="6"></label>
           <label>권한<select class="select" name="role">${Object.entries(R).map(([k, l]) => `<option value="${k}" ${k === 'reporter' ? 'selected' : ''}>${l.split(' · ')[0]}</option>`).join('')}</select></label>
-          <button class="btn primary">추가</button></form>`, { desc: '아이디는 영문 소문자·숫자 3자 이상. 만든 뒤 아이디와 임시 비밀번호를 가족에게 알려주세요.' })
+          <button class="btn primary">추가</button></form>`, { desc: '로그인 아이디는 가족 각자의 이메일 주소예요. 만든 뒤 이메일과 임시 비밀번호를 가족에게 알려주세요.' })
       + panel('권한 안내 (7단계)', `<table class="table set-roles"><tbody>${Object.values(R).map((l, i) => `<tr><th><span class="set-rank">${7 - i}</span>${l.split(' · ')[0]}</th><td>${l.split(' · ')[1]}</td></tr>`).join('')}<tr><th><span class="set-rank">1</span>방문자</th><td>로그인하지 않은 사람 — 발행된 기사와 공개 카드 읽기·응원 반응 (‘가족만 보기’를 켜면 볼 수 없어요)</td></tr></tbody></table>`);
   }
   function familyBind(view) {
     view.querySelector('.set-users').onclick = async (e) => {
       const li = e.target.closest('li[data-u]'); const b = e.target.closest('button'); if (!li || !b) return;
       const id = li.dataset.u; const val = (f) => li.querySelector(`[data-f="${f}"]`);
-      const body = () => ({ display_name: val('display_name').value, role: val('role').value, timetable_access: val('timetable_access').checked });
+      const body = () => ({ display_name: val('display_name').value, username: val('username').value, role: val('role').value, timetable_access: val('timetable_access').checked });
       try {
         if (b.hasAttribute('data-save')) { await YT.put('/api/users/' + id, body()); YT.toast('저장했어요.'); if (id === YT.state.user.id) { const me = await YT.api('/api/me'); YT.state.user = me.user; YT.renderChrome(); } draw(view, 'family'); }
         if (b.hasAttribute('data-pw')) { const pw = prompt('새 비밀번호 (6자 이상)'); if (!pw) return; await YT.put('/api/users/' + id, { ...body(), password: pw }); YT.toast('비밀번호를 바꿨어요.'); }
@@ -155,7 +155,7 @@
     };
     YT.$('#newUser').onsubmit = async (e) => {
       e.preventDefault();
-      try { await YT.post('/api/users', Object.fromEntries(new FormData(e.target))); YT.toast('계정을 만들었어요. 아이디와 임시 비밀번호를 가족에게 알려주세요.'); draw(view, 'family'); } catch (err) { YT.err(err); }
+      try { await YT.post('/api/users', Object.fromEntries(new FormData(e.target))); YT.toast('계정을 만들었어요. 이메일과 임시 비밀번호를 가족에게 알려주세요.'); draw(view, 'family'); } catch (err) { YT.err(err); }
     };
   }
 
@@ -180,7 +180,7 @@
           <ul class="set-list"><li>사진 원본 ${s.upload_files}개(${kb(s.upload_kb).replace(/<\/?small>/g, '')})는 서버의 <code>data/uploads</code> 폴더에 있어요. 폴더째 함께 복사해두세요.</li>
           <li>데이터베이스 파일은 <code>data/ytimes.db</code>(${kb(s.db_kb).replace(/<\/?small>/g, '')})예요. 서버를 끈 상태에서 <code>data</code> 폴더를 통째로 복사하면 가장 확실한 백업이에요.</li></ul>
           <div class="set-actions"><button class="btn primary" id="backupBtn">백업 파일 내려받기</button></div>`))
-      + panel('서버로 옮기기용 전체 백업', `<p class="set-desc">기사·일정·할 일·주소록 같은 글 자료에 <b>사진과 목소리 파일까지 모두</b> 담은 백업 파일 하나를 만들어요. 다른 서버(NAS)로 옮길 때, 새 서버의 <b>설정 › 자료 관리 › 백업 되돌리기</b>에 이 파일을 올리면 그대로 옮겨져요. 가족 계정(아이디·비밀번호)은 옮겨지지 않으니 새 서버에서 다시 만들어 주세요.</p>
+      + panel('서버로 옮기기용 전체 백업', `<p class="set-desc">기사·일정·할 일·주소록 같은 글 자료에 <b>사진과 목소리 파일까지 모두</b> 담은 백업 파일 하나를 만들어요. 다른 서버(NAS)로 옮길 때, 새 서버의 <b>설정 › 자료 관리 › 백업 되돌리기</b>에 이 파일을 올리면 그대로 옮겨져요. 가족 계정(이메일·비밀번호)은 옮겨지지 않으니 새 서버에서 다시 만들어 주세요.</p>
           <div class="set-actions"><button class="btn primary" id="fullBackupBtn">전체 백업 내려받기 (사진 포함)</button><span class="muted small" id="fullBackupMsg"></span></div>`)
       + panel('백업 되돌리기', `<p class="set-desc">내려받아 둔 백업 파일(JSON)로 기사·일정·카드·투표 등 자료를 그때 상태로 되돌려요. <b>지금 자료는 모두 백업 파일 내용으로 바뀌어요.</b> 가족 계정과 비밀번호는 그대로예요.</p>
           <div class="row gap"><label class="btn" for="restoreFile">백업 파일 고르기</label><input type="file" id="restoreFile" accept=".json,application/json" hidden><span class="muted small" id="restoreInfo">먼저 지금 상태를 ‘백업 파일 내려받기’로 받아두면 안전해요.</span></div>

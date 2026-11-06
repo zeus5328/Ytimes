@@ -517,15 +517,22 @@ route('POST', '/api/setup', null, ({ body, res }) => {
   startSession(res, u.id);
   return { user: userOut(u) };
 });
+// 로그인 아이디 = 이메일 주소 (예전에 만든 영문 아이디 계정도 그대로 로그인할 수 있음)
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+function checkEmail(v, exceptId) {
+  const email = str(v, 120).toLowerCase();
+  if (!EMAIL_RE.test(email)) fail(400, '아이디로 쓸 이메일 주소를 정확히 적어 주세요. (예: dad@gmail.com)');
+  const dup = get('SELECT id FROM users WHERE username=?', email);
+  if (dup && dup.id !== exceptId) fail(400, '이미 다른 계정이 쓰고 있는 이메일이에요.');
+  return email;
+}
 function createUser(b) {
-  const username = str(b.username, 40).toLowerCase();
-  if (!/^[a-z0-9._-]{3,40}$/.test(username)) fail(400, '아이디는 영문 소문자·숫자 3자 이상으로 정해주세요.');
+  const username = checkEmail(b.username);
   if (String(b.password || '').length < 6) fail(400, '비밀번호는 6자 이상이어야 합니다.');
-  if (get('SELECT 1 FROM users WHERE username=?', username)) fail(400, '이미 사용 중인 아이디입니다.');
   const role = ROLE_RANK[b.role] ? b.role : 'subscriber';
   const id = uid();
   run('INSERT INTO users(id,username,display_name,pw_hash,role,timetable_access,created) VALUES(?,?,?,?,?,?,?)',
-    id, username, str(b.display_name, 30) || username, hashPassword(String(b.password)), role, b.timetable_access ? 1 : 0, now());
+    id, username, str(b.display_name, 30) || username.split('@')[0], hashPassword(String(b.password)), role, b.timetable_access ? 1 : 0, now());
   return get('SELECT * FROM users WHERE id=?', id);
 }
 function startSession(res, userId) {
@@ -538,12 +545,12 @@ function startSession(res, userId) {
 const loginFails = new Map();
 const failKey = (req, name) => [`u:${name}`, `ip:${(req.socket && req.socket.remoteAddress) || ''}`];
 route('POST', '/api/login', null, ({ body, res, req }) => {
-  const name = str(body.username, 40).toLowerCase(); const t = Date.now();
+  const name = str(body.username, 120).toLowerCase(); const t = Date.now();
   for (const k of failKey(req, name)) { const f = loginFails.get(k); if (f && f.n >= (k.startsWith('ip:') ? 20 : 5) && t - f.t < 10 * 60e3) fail(429, `로그인을 여러 번 틀려서 잠시 막았어요. ${Math.ceil((10 * 60e3 - (t - f.t)) / 60e3)}분 뒤에 다시 시도해주세요.`); }
   const u = get('SELECT * FROM users WHERE username=?', name);
   if (!u || !checkPassword(String(body.password || ''), u.pw_hash)) {
     for (const k of failKey(req, name)) { const f = loginFails.get(k); loginFails.set(k, f && t - f.t < 10 * 60e3 ? { n: f.n + 1, t: f.t } : { n: 1, t }); }
-    fail(401, '아이디 또는 비밀번호가 맞지 않습니다.');
+    fail(401, '이메일 또는 비밀번호가 맞지 않습니다.');
   }
   for (const k of failKey(req, name)) loginFails.delete(k);
   startSession(res, u.id);
@@ -577,6 +584,7 @@ route('PUT', '/api/users/:id', 'admin', ({ params, body, user }) => {
   const u = get('SELECT * FROM users WHERE id=?', params.id) || fail(404, '사용자를 찾을 수 없습니다.');
   const role = ROLE_RANK[body.role] ? body.role : u.role;
   if (u.id === user.id && role !== 'admin') fail(400, '자기 자신의 관리자 권한은 해제할 수 없습니다.');
+  if (body.username != null && String(body.username).trim().toLowerCase() !== u.username) run('UPDATE users SET username=? WHERE id=?', checkEmail(body.username, u.id), u.id);
   run('UPDATE users SET display_name=?, role=?, timetable_access=? WHERE id=?', str(body.display_name, 30) || u.display_name,
     role, body.timetable_access ? 1 : 0, u.id);
   if (body.password) {

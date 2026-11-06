@@ -23,7 +23,7 @@
       <p class="page-desc">먼저 신문 전체를 관리할 <b>관리자 계정</b>을 만들어요. 가족 기자 계정은 이후 ‘관리’ 화면에서 추가할 수 있어요.</p>
       <form class="form" id="setupForm">
         <label class="block">이름 (신문에 표시)<input class="input" name="display_name" required maxlength="30" placeholder="아빠"></label>
-        <label class="block">아이디<input class="input" name="username" required autocomplete="username" placeholder="영문 소문자·숫자 3자 이상"></label>
+        <label class="block">이메일 (로그인 아이디)<input class="input" type="email" name="username" required autocomplete="username email" autocapitalize="off" spellcheck="false" placeholder="dad@gmail.com"></label>
         <label class="block">비밀번호<input class="input" type="password" name="password" required minlength="6" autocomplete="new-password"></label>
         <button class="btn primary wide">관리자 계정 만들기</button></form></div>`;
     YT.$('#setupForm').onsubmit = async (e) => {
@@ -37,7 +37,7 @@
     view.innerHTML = `<div class="auth-box"><div class="sec-kicker">FAMILY LOGIN</div><h1 class="page-title">로그인</h1>
       <p class="page-desc">가족 계정으로 로그인하면 기사 쓰기, 댓글, 카드 보내기를 할 수 있어요.</p>
       <form class="form" id="loginForm">
-        <label class="block">아이디<input class="input" name="username" required autocomplete="username"></label>
+        <label class="block">이메일<input class="input" name="username" required autocomplete="username email" inputmode="email" autocapitalize="off" spellcheck="false" placeholder="dad@gmail.com"></label>
         <label class="block">비밀번호<input class="input" type="password" name="password" required autocomplete="current-password"></label>
         <button class="btn primary wide">로그인</button></form>
       <p class="muted small">계정이 없다면 관리자(가족 편집장)에게 만들어 달라고 요청하세요.</p></div>`;
