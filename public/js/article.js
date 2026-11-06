@@ -125,7 +125,7 @@
         slot.innerHTML = `<form class="c-form reply"><textarea class="input" rows="2" maxlength="500" required placeholder="${esc(rp.dataset.to)}님께 답글">${rp.closest('.reply') ? '@' + esc(rp.dataset.to) + ' ' : ''}</textarea><div class="row gap"><button class="btn small primary">답글 달기</button><button type="button" class="btn small" data-cancel>취소</button></div></form>`;
         const fm = slot.querySelector('form'); const ta = fm.querySelector('textarea'); ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length);
         fm.querySelector('[data-cancel]').onclick = () => { slot.innerHTML = ''; };
-        fm.onsubmit = async (ev) => { ev.preventDefault(); try { await YT.post(`/api/articles/${a.id}/comments`, { body: ta.value, parent_id: rp.dataset.reply }); YT.toast('답글을 남겼어요.'); loadComments(); YT.clearCache(); } catch (err) { YT.err(err); } };
+        fm.onsubmit = async (ev) => { ev.preventDefault(); try { const r = await YT.post(`/api/articles/${a.id}/comments`, { body: ta.value, parent_id: rp.dataset.reply }); YT.toast('답글을 남겼어요.' + (r.points ? ` +${r.points}포인트` : '')); loadComments(); YT.clearCache(); } catch (err) { YT.err(err); } };
         return;
       }
       const ce = e.target.closest('[data-cedit]');
@@ -144,7 +144,7 @@
     const form = YT.$('#cForm');
     if (form) form.onsubmit = async (e) => {
       e.preventDefault();
-      try { await YT.post(`/api/articles/${a.id}/comments`, { body: form.body.value }); form.reset(); loadComments(); YT.clearCache(); YT.toast('댓글을 남겼어요.'); } catch (err) { YT.err(err); }
+      try { const r = await YT.post(`/api/articles/${a.id}/comments`, { body: form.body.value }); form.reset(); loadComments(); YT.clearCache(); YT.toast('댓글을 남겼어요.' + (r.points ? ` +${r.points}포인트` : '')); } catch (err) { YT.err(err); }
     };
   });
 

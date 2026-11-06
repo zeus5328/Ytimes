@@ -890,11 +890,13 @@ route('POST', '/api/articles/:id/comments', 'subscriber', ({ params, user, body 
   let parent = body.parent_id ? get('SELECT * FROM comments WHERE id=? AND article_id=?', str(body.parent_id, 60), a.id) : null;
   if (body.parent_id && !parent) fail(400, '답글을 달 댓글을 찾을 수 없어요.');
   if (parent && parent.parent_id) parent = get('SELECT * FROM comments WHERE id=?', parent.parent_id) || parent;
-  run('INSERT INTO comments(id,article_id,user_id,name,body,created,parent_id) VALUES(?,?,?,?,?,?,?)', uid(), a.id, user.id, user.display_name, text, now(), parent ? parent.id : null);
+  const cid = uid();
+  run('INSERT INTO comments(id,article_id,user_id,name,body,created,parent_id) VALUES(?,?,?,?,?,?,?)', cid, a.id, user.id, user.display_name, text, now(), parent ? parent.id : null);
+  const points = talkPoints(user, 'comment', cid, `댓글 · ${a.title}`, TALK_DAILY.comment);
   const link = `#/article/${a.id}`;
   if (parent && parent.user_id && parent.user_id !== user.id) notify([parent.user_id], { kind: 'comment', title: `내 댓글에 답글 · ${a.title}`, body: `${user.display_name}: ${text.slice(0, 80)}`, link });
   notify(writers(a).filter((id) => id !== user.id && !(parent && id === parent.user_id)), { kind: 'comment', title: `새 댓글 · ${a.title}`, body: `${user.display_name}: ${text.slice(0, 80)}`, link });
-  return { ok: true };
+  return { ok: true, points };
 });
 route('PUT', '/api/comments/:id', 'subscriber', ({ params, user, body }) => {
   const c = get('SELECT * FROM comments WHERE id=? AND deleted=0', params.id) || fail(404, '댓글을 찾을 수 없습니다.');
@@ -1423,8 +1425,9 @@ route('GET', '/api/notes', null, ({ user, query }) => {
 });
 route('POST', '/api/notes', 'subscriber', ({ user, body }) => {
   const text = str(body.body, 140); if (!text) fail(400, '한마디를 입력해주세요.');
-  run('INSERT INTO notes(id,user_id,name,body,mood,created) VALUES(?,?,?,?,?,?)', uid(), user.id, user.display_name, text, str(body.mood, 8), now());
-  return { ok: true };
+  const nid = uid();
+  run('INSERT INTO notes(id,user_id,name,body,mood,created) VALUES(?,?,?,?,?,?)', nid, user.id, user.display_name, text, str(body.mood, 8), now());
+  return { ok: true, points: talkPoints(user, 'note', nid, '오늘의 한마디', TALK_DAILY.note) };
 });
 route('PUT', '/api/notes/:id', 'subscriber', ({ user, params, body }) => {
   const n = get('SELECT * FROM notes WHERE id=? AND deleted=0', params.id) || fail(404, '한마디를 찾을 수 없습니다.');
@@ -1644,8 +1647,15 @@ if (getSetting('coupons_seeded', '') !== '1') { // 처음 한 번만 예시 쿠�
     run('INSERT INTO coupons(id,title,description,price,stock,per_user,icon,active,sort,created) VALUES(?,?,?,?,?,?,?,?,?,?)', uid(), t, d, p, -1, 0, ic, 1, i, now()));
 }
 const CARD_DAILY = 5;
+// 댓글·오늘의 한마디 포인트 — 하루에 받을 수 있는 횟수 (댓글 5번, 한마디 1번)
+const TALK_DAILY = { comment: 5, note: 1 };
+function talkPoints(user, kind, ref, reason, cap) {
+  const amt = pointRate().talk; if (!amt) return 0;
+  if (get('SELECT COUNT(*) c FROM points WHERE user_id=? AND kind=? AND created>=?', user.id, kind, kstDayStart()).c >= cap) return 0;
+  return addPoints(user.id, amt, reason, kind, ref) ? amt : 0;
+}
 const CARD_NAMES = { letter: '편지', birthday: '생일 카드', anniversary: '기념일 카드', christmas: '크리스마스 카드', newyear: '연하장' };
-const pointRate = () => ({ card: Math.max(0, parseInt(getSetting('points_card', '1000'), 10) || 0), lead: Math.max(0, parseInt(getSetting('points_article', '2000'), 10) || 0), co: Math.max(0, parseInt(getSetting('points_coauthor', '500'), 10) || 0), bday: Math.max(0, parseInt(getSetting('points_birthday', '20000'), 10) || 0) });
+const pointRate = () => ({ talk: Math.max(0, parseInt(getSetting('points_talk', '300'), 10) || 0), card: Math.max(0, parseInt(getSetting('points_card', '1000'), 10) || 0), lead: Math.max(0, parseInt(getSetting('points_article', '2000'), 10) || 0), co: Math.max(0, parseInt(getSetting('points_coauthor', '500'), 10) || 0), bday: Math.max(0, parseInt(getSetting('points_birthday', '20000'), 10) || 0) });
 const balance = (userId) => get('SELECT COALESCE(SUM(amount),0) s FROM points WHERE user_id=?', userId).s;
 function addPoints(userId, amount, reason, kind = 'manual', ref = '', byId = '') {
   if (!userId || !amount) return false;
@@ -1745,6 +1755,7 @@ route('PUT', '/api/points/rate', 'admin', ({ body }) => {
   setSetting('points_coauthor', Math.max(0, Math.min(1e6, parseInt(body.co, 10) || 0)));
   if (body.bday !== undefined) setSetting('points_birthday', Math.max(0, Math.min(1e6, parseInt(body.bday, 10) || 0)));
   if (body.card !== undefined) setSetting('points_card', Math.max(0, Math.min(1e6, parseInt(body.card, 10) || 0)));
+  if (body.talk !== undefined) setSetting('points_talk', Math.max(0, Math.min(1e6, parseInt(body.talk, 10) || 0)));
   return { ok: true, rate: pointRate() };
 });
 route('POST', '/api/points/backpay', 'admin', () => {

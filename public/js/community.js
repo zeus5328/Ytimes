@@ -153,7 +153,7 @@
     : `<p class="muted small"><a href="#/login?next=${encodeURIComponent(location.hash || '#/')}">로그인</a>하면 한마디를 남길 수 있어요.</p>`;
   YT.bindNotes = (root, reload) => {
     const f = root.querySelector('#noteForm');
-    if (f) f.onsubmit = async (e) => { e.preventDefault(); try { await YT.post('/api/notes', { body: f.body.value, mood: f.mood.value }); f.body.value = ''; reload(); } catch (err) { YT.err(err); } };
+    if (f) f.onsubmit = async (e) => { e.preventDefault(); try { const r = await YT.post('/api/notes', { body: f.body.value, mood: f.mood.value }); f.body.value = ''; if (r.points) YT.toast(`한마디를 남겼어요. +${r.points}포인트`); reload(); } catch (err) { YT.err(err); } };
     root.addEventListener('click', async (e) => {
       const ed = e.target.closest('[data-edit-note]');
       if (ed) { // 그 자리에서 고치기
