@@ -2071,4 +2071,20 @@ div.gl:hover { border-color: var(--line); }
 .ld-no { width: 1.5rem; height: 1.5rem; border-radius: 50%; display: grid; place-items: center; background: var(--c); color: #fff; font-size: .6875rem; font-weight: 800; }
 .reduce-motion .pop .lt-ball, .reduce-motion .ld-bot.open, .reduce-motion .sc-ticket.won, .reduce-motion .ld-path.anim { animation: none; stroke-dashoffset: 0; }
 @media (max-width: 760px) { .lt-grid { grid-template-columns: 1fr; } .g-hero { padding: 1.375rem 1.25rem 1.25rem; } .g-wallet { justify-items: start; width: 100%; } .lt-prizes { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
-@media (max-width: 480px) { .lt-pad { grid-template-columns: repeat(7, minmax(0, 1fr)); } .g-count span { min-width: 3rem; } .lt-balls.lg { gap: .3rem; } .lt-balls.lg .lt-ball { width: 2.125rem; height: 2.125rem; font-size: .8125rem; } .ld-top i { width: 2.375rem; height: 2.375rem; font-size: .75rem; } .ld-bot { margin-left: 2px; margin-right: 2px; } }
+@media (max-width: 480px) { .lt-pad { grid-template-columns: repeat(7, minmax(0, 1fr)); } .g-count span { min-width: 3rem; } .lt-balls.lg { gap: .3rem; } .lt-balls.lg .lt-ball { width: 2.125rem; height: 2.125rem; font-size: .8125rem; } .ld-top i { width: 2.375rem; height: 2.375rem; font-size: .75rem; } }
+/* 사다리 준비 화면 */
+.ld-setup { display: grid; gap: 1rem; max-width: 40rem; margin: 0 auto; width: 100%; }
+.ld-step { display: flex; align-items: center; gap: .75rem; }
+.ld-step > div { display: grid; } .ld-step b { font-size: 1rem; font-weight: 800; } .ld-step small { font-size: .75rem; color: var(--muted); }
+.ld-stepno { width: 1.75rem; height: 1.75rem; border-radius: 50%; display: grid; place-items: center; background: var(--ink); color: var(--bg); font-weight: 800; font-size: .8125rem; flex: none; }
+.ld-count { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: .375rem; margin-bottom: .5rem; }
+.ld-count button { display: grid; justify-items: center; padding: .625rem 0 .5rem; border: 1.5px solid var(--line-2); border-radius: var(--r); background: var(--bg); color: var(--ink); font-size: 1.25rem; font-weight: 800; cursor: pointer; line-height: 1.1; transition: transform .12s, background .12s; }
+.ld-count button small { font-size: .6875rem; font-weight: 600; color: var(--muted); }
+.ld-count button:hover { transform: translateY(-1px); }
+.ld-count button.on { background: var(--ink); border-color: var(--ink); color: var(--bg); } .ld-count button.on small { color: var(--bg); opacity: .8; }
+.ld-setup .ld-cols { grid-template-columns: 1fr; }
+.ld-setup .ld-pair { grid-template-columns: auto 1fr 1fr; }
+.ld-setup .ld-no { width: 1.875rem; height: 1.875rem; font-size: .8125rem; }
+.ld-quick { display: flex; flex-wrap: wrap; gap: .375rem; align-items: center; }
+.ld-row > .ld-bot { width: calc(var(--cw, 92px) - 6px); margin: .375rem 3px 0; }
+.ld-top i { font-size: 1rem; }

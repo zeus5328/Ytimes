@@ -1,4 +1,4 @@
-/* 놀이 — 로또복권 · 즉석 복권 · 사다리타기 (복권은 원고료 포인트로) */
+/* 오락실 — 로또복권 · 즉석 복권 · 사다리타기 (복권은 원고료 포인트로) */
 (function () {
   'use strict';
   const { esc } = YT;
@@ -20,11 +20,47 @@
   };
   const balanceChip = (n, id = '') => `<div class="g-wallet"><span>내 포인트</span><b ${id ? `id="${id}"` : ''}>${P(n)}<small>P</small></b><a href="#/points">충전하려면 기사 쓰기 →</a></div>`;
 
-  // ───────── 사다리타기 (이 기기에서만, 로그인 없이도)
+  // ───────── 사다리타기 (이 기기에서만, 로그인 없이도) — ① 인원 고르기 ② 이름·결과 적기 ③ 사다리
   function ladder(box) {
     let st = store.get('yt_ladder', { players: ['아빠', '엄마', '윤서', '서윤'], results: ['설거지', '청소기', '빨래 개기', '통과!'] });
     let lad = null, done = {};
     let COLW = 92; const TOP = 10, H = 320, ROWS = 12;
+    const PRESET = ['꽝', '통과!', '설거지', '청소기', '빨래 개기', '분리수거', '심부름', '간식 사기'];
+    const resize = (n) => { // 인원에 맞춰 이름·결과 칸 늘리고 줄이기
+      while (st.players.length < n) { st.players.push(''); st.results.push(PRESET[st.results.length % PRESET.length]); }
+      st.players.length = n; st.results.length = n;
+    };
+    // ① ② 준비 화면
+    const setup = () => {
+      const n = st.players.length;
+      box.innerHTML = `<div class="g-panel ld-setup">
+        <div class="ld-step"><span class="ld-stepno">1</span><div><b>몇 명이 할까요?</b><small>2명부터 8명까지</small></div></div>
+        <div class="ld-count" role="radiogroup" aria-label="인원">${[2, 3, 4, 5, 6, 7, 8].map((k) => `<button type="button" role="radio" class="${k === n ? 'on' : ''}" aria-checked="${k === n}" data-n="${k}">${k}<small>명</small></button>`).join('')}</div>
+        <div class="ld-step"><span class="ld-stepno">2</span><div><b>이름과 결과를 적어요</b><small>결과는 사다리 아래에 섞여서 숨겨져요</small></div></div>
+        <form id="ldForm" class="ld-form">
+          <div class="ld-cols">${st.players.map((p, i) => `<div class="ld-pair" style="--c:${COLORS[i % COLORS.length]}"><span class="ld-no">${i + 1}</span>
+            <input class="input" name="p${i}" value="${esc(p)}" maxlength="10" placeholder="${i + 1}번 이름" aria-label="${i + 1}번 이름" ${i === 0 ? 'autofocus' : ''}>
+            <input class="input" name="r${i}" value="${esc(st.results[i] || '')}" maxlength="14" placeholder="결과" aria-label="${i + 1}번 결과"></div>`).join('')}</div>
+          <div class="ld-quick"><span class="muted small">결과 빨리 채우기</span><button type="button" class="chip" data-fill="pass">한 명만 당첨</button><button type="button" class="chip" data-fill="chores">집안일 나누기</button><button type="button" class="chip" data-fill="order">순서 정하기</button></div>
+          <button class="btn primary big wide">사다리 만들기 →</button></form></div>`;
+      const read = () => { const f = new FormData(box.querySelector('#ldForm')); st.players = st.players.map((_, i) => String(f.get('p' + i) || '').trim()); st.results = st.results.map((_, i) => String(f.get('r' + i) || '').trim()); };
+      box.querySelectorAll('[data-n]').forEach((b) => b.onclick = () => { read(); resize(+b.dataset.n); setup(); });
+      box.querySelectorAll('[data-fill]').forEach((b) => b.onclick = () => {
+        read(); const k = st.players.length;
+        st.results = b.dataset.fill === 'pass' ? st.results.map((_, i) => (i === 0 ? '당첨!' : '꽝'))
+          : b.dataset.fill === 'order' ? st.results.map((_, i) => `${i + 1}번째`)
+          : st.results.map((_, i) => ['설거지', '청소기', '빨래 개기', '분리수거', '심부름', '통과!', '신발 정리', '화분 물주기'][i % 8]);
+        if (b.dataset.fill === 'chores' && k <= 4) st.results[k - 1] = '통과!';
+        setup();
+      });
+      box.querySelector('#ldForm').onsubmit = (e) => {
+        e.preventDefault(); read();
+        const empty = st.players.findIndex((p) => !p);
+        if (empty >= 0) { YT.toast(`${empty + 1}번 이름을 적어 주세요.`, 'error'); box.querySelector(`[name=p${empty}]`).focus(); return; }
+        st.results = st.results.map((r) => r || '꽝');
+        store.set('yt_ladder', st); build(); draw();
+      };
+    };
     const build = () => {
       const n = st.players.length; const rungs = [];
       for (let row = 0; row < ROWS; row++) {
@@ -43,6 +79,7 @@
       }
       pts.push([c, TOP + H]); return { end: c, pts };
     };
+    // ③ 사다리
     const draw = () => {
       const n = st.players.length;
       const avail = (box.clientWidth || 360) - 48; COLW = Math.max(56, Math.min(92, Math.floor(avail / n))); // 휴대폰에서도 가로로 넘치지 않게
@@ -50,32 +87,25 @@
       const who = {}; Object.keys(done).forEach((s) => { who[pathOf(+s).end] = +s; });
       const paths = Object.keys(done).map((s) => { const p = pathOf(+s); const d = 'M' + p.pts.map(([c, yy]) => `${cx(c)} ${yy}`).join(' L'); return { s: +s, d, anim: done[s] === 'anim' }; });
       box.innerHTML = `<div class="g-panel ld-panel">
-        <div class="ld-head"><div><b>누가 할까?</b><span>이름을 누르면 사다리를 타고 내려가요</span></div><div class="row gap"><button class="btn small" id="ldNew">↻ 새 사다리</button><button class="btn small primary" id="ldAll">모두 공개</button></div></div>
+        <div class="ld-head"><div><b>누가 할까?</b><span>${n}명 · 이름을 누르면 사다리를 타고 내려가요</span></div><div class="row gap"><button class="btn small ghost" id="ldBack">← 다시 정하기</button><button class="btn small" id="ldNew">↻ 새 사다리</button><button class="btn small primary" id="ldAll">모두 공개</button></div></div>
         <div class="ld-wrap"><div class="ld-board" style="width:${W}px;--cw:${COLW}px">
-          <div class="ld-row">${st.players.map((p, i) => `<button class="ld-top ${done[i] ? 'on' : ''}" data-go="${i}" style="--c:${COLORS[i % COLORS.length]}"><i>${esc(YT.initials ? YT.initials(p) : p.slice(0, 2))}</i><span>${esc(p)}</span></button>`).join('')}</div>
+          <div class="ld-row">${st.players.map((p, i) => `<button class="ld-top ${done[i] ? 'on' : ''}" data-go="${i}" style="--c:${COLORS[i % COLORS.length]}"><i>${i + 1}</i><span>${esc(p)}</span></button>`).join('')}</div>
           <svg class="ld-svg" viewBox="0 0 ${W} ${TOP * 2 + H}" width="${W}" role="img" aria-label="사다리">
             ${[...Array(n)].map((_, c) => `<line x1="${cx(c)}" y1="${TOP}" x2="${cx(c)}" y2="${TOP + H}" class="ld-pole"/>`).join('')}
             ${lad.rungs.map((r) => `<line x1="${cx(r.g)}" y1="${y(r.row)}" x2="${cx(r.g + 1)}" y2="${y(r.row)}" class="ld-pole"/>`).join('')}
             ${paths.map((p) => `<path d="${p.d}" class="ld-path ${p.anim ? 'anim' : ''}" style="stroke:${COLORS[p.s % COLORS.length]}"/>${p.anim ? `<circle r="8" class="ld-dot" fill="${COLORS[p.s % COLORS.length]}"><animateMotion dur="1.6s" fill="freeze" path="${p.d}" calcMode="paced"/></circle>` : ''}`).join('')}
           </svg>
-          <div class="ld-row">${lad.results.map((r, i) => { const w = who[i]; return `<div class="ld-bot ${w != null ? 'open' : ''}" style="--c:${w != null ? COLORS[w % COLORS.length] : 'var(--line-2)'};--i:${w != null ? 1 : 0}">${w != null ? `<small>${esc(st.players[w])}</small><b>${esc(r)}</b>` : '<b class="q">?</b>'}</div>`; }).join('')}</div>
+          <div class="ld-row">${lad.results.map((r, i) => { const w = who[i]; return `<div class="ld-bot ${w != null ? 'open' : ''}" style="--c:${w != null ? COLORS[w % COLORS.length] : 'var(--line-2)'}">${w != null ? `<small>${esc(st.players[w])}</small><b>${esc(r)}</b>` : '<b class="q">?</b>'}</div>`; }).join('')}</div>
         </div></div>
         ${Object.keys(done).length ? `<ul class="ld-res">${Object.keys(done).map((s) => `<li style="--c:${COLORS[s % COLORS.length]}"><b>${esc(st.players[s])}</b><span>→</span>${esc(lad.results[pathOf(+s).end])}</li>`).join('')}</ul>` : ''}
-      </div>
-      <details class="g-panel g-more"><summary>참가자 · 결과 바꾸기 <span class="muted small">${n}명 · 이 기기에 기억돼요</span></summary>
-        <form id="ldForm" class="ld-form"><div class="ld-cols">${st.players.map((p, i) => `<div class="ld-pair" style="--c:${COLORS[i % COLORS.length]}"><span class="ld-no">${i + 1}</span><input class="input sm" name="p${i}" value="${esc(p)}" maxlength="10" aria-label="${i + 1}번 참가자"><input class="input sm" name="r${i}" value="${esc(st.results[i])}" maxlength="14" aria-label="${i + 1}번 결과"></div>`).join('')}</div>
-          <div class="row gap"><button type="button" class="btn small" id="ldMinus" ${n <= 2 ? 'disabled' : ''}>− 한 명 빼기</button><button type="button" class="btn small" id="ldPlus" ${n >= 8 ? 'disabled' : ''}>+ 한 명 더</button><button class="btn small primary">이대로 새 사다리</button></div></form></details>`;
+      </div>`;
       Object.keys(done).forEach((s) => { done[s] = 'shown'; });
-      const readForm = () => { const f = new FormData(box.querySelector('#ldForm')); st = { players: st.players.map((_, i) => String(f.get('p' + i) || '').trim() || `${i + 1}번`), results: st.results.map((_, i) => String(f.get('r' + i) || '').trim() || '꽝') }; };
-      const again = (open) => { store.set('yt_ladder', st); build(); draw(); if (open) box.querySelector('.g-more').open = true; };
-      box.querySelector('#ldForm').onsubmit = (e) => { e.preventDefault(); readForm(); again(); };
-      box.querySelector('#ldPlus').onclick = () => { readForm(); st.players.push(`${st.players.length + 1}번`); st.results.push('꽝'); again(true); };
-      box.querySelector('#ldMinus').onclick = () => { readForm(); st.players.pop(); st.results.pop(); again(true); };
+      box.querySelector('#ldBack').onclick = setup;
       box.querySelector('#ldAll').onclick = () => { st.players.forEach((_, i) => { if (!done[i]) done[i] = 'anim'; }); draw(); };
       box.querySelector('#ldNew').onclick = () => { build(); draw(); };
       box.querySelectorAll('[data-go]').forEach((b) => b.onclick = () => { const i = b.dataset.go; if (!done[i]) { done[i] = 'anim'; draw(); } });
     };
-    build(); draw();
+    setup();
   }
 
   const needReporter = (box) => {
@@ -213,10 +243,10 @@
 
   const mount = (desc, fn) => async (view) => {
     view.className = 'container';
-    view.innerHTML = YT.subTabs('games') + YT.pageHead('', '놀이', desc) + '<div id="gBox" class="g-box"><p class="muted">불러오는 중…</p></div>';
+    view.innerHTML = YT.subTabs('games') + YT.pageHead('', '오락실', desc) + '<div id="gBox" class="g-box"><p class="muted">불러오는 중…</p></div>';
     try { await fn(view.querySelector('#gBox')); } catch (err) { view.querySelector('#gBox').innerHTML = `<div class="empty-state"><p>${esc(err.message || '불러오지 못했어요.')}</p></div>`; }
   };
-  YT.addRoute('/games', mount('누가 설거지할까? 사다리를 타 보세요. 참가자와 결과는 이 기기에 기억돼요.', ladder));
+  YT.addRoute('/games', mount('누가 설거지할까? 인원을 고르고 이름을 적으면 사다리가 만들어져요. 적은 이름은 이 기기에 기억돼요.', ladder));
   YT.addRoute('/games/lotto', mount('원고료 포인트로 사는 우리 가족 로또복권. 매주 토요일 저녁 8시에 추첨해요.', lotto));
   YT.addRoute('/games/scratch', mount('포인트로 사서 바로 긁어 보는 즉석 복권이에요.', scratch));
 })();

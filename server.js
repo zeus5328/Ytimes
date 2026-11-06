@@ -1740,7 +1740,7 @@ route('POST', '/api/points/backpay', 'admin', () => {
   return { ok: true, message: n ? `지난 기사 원고료 ${n}건, 모두 ${sum.toLocaleString('ko-KR')}포인트를 줬어요.` : '줄 원고료가 없어요. (이미 모두 받았어요)' };
 });
 
-// ───────────────────────── 놀이: 주간 로또 · 즉석 복권 (원고료 포인트로)
+// ───────────────────────── 오락실: 주간 로또 · 즉석 복권 (원고료 포인트로)
 db.exec(`CREATE TABLE IF NOT EXISTS lotto_tickets (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, round INTEGER NOT NULL, numbers TEXT NOT NULL, auto INTEGER DEFAULT 0,
   price INTEGER NOT NULL, rank INTEGER DEFAULT 0, prize INTEGER DEFAULT 0, settled INTEGER DEFAULT 0, created TEXT NOT NULL);
 CREATE INDEX IF NOT EXISTS lotto_round ON lotto_tickets(round);

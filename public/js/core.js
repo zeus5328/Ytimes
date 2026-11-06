@@ -238,7 +238,7 @@
     return [
       { name: '신문', items: [['#/', '1면', ['#/'], '오늘의 신문'], ['#/articles', '기사', ['#/articles', '#/article/', '#/section/', '#/recipes', '#/map', '#/read'], '코너별 기사 · 크게 읽기 · 레시피북 · 여행 지도'], ['#/print', '지면', ['#/print'], '이달의 지면 · 합본호']] },
       { name: '일정', items: [['#/agenda', '일정', ['#/agenda', '#/calendar', '#/anniversaries'], '오늘 · 달력 · 생일·기념일'], tt && ['#/timetable', '시간표', ['#/timetable'], '학교·학원 시간표'], YT.can('subscriber') && ['#/todo', '할 일', ['#/todo'], '당번 · 가족회의 · 버킷리스트']].filter(Boolean) },
-      { name: '가족', items: [['#/board', '가족 광장', ['#/board'], '투표 · 오늘의 한마디'], ['#/people', '가족 앨범', ['#/people', '#/family-tree', '#/growth', '#/timeline'], '인물 · 가계도 · 성장 기록 · 가족 연표'], ['#/post', '우체국', ['#/post'], '편지·카드 · 타임캡슐'], [YT.can('reporter') ? '#/games/lotto' : '#/games', '놀이', ['#/games'], '로또복권 · 즉석 복권 · 사다리타기'], YT.can('admin') && ['#/studio', '사진관', ['#/studio'], '사진 보관·앨범']].filter(Boolean) },
+      { name: '가족', items: [['#/board', '가족 광장', ['#/board'], '투표 · 오늘의 한마디'], ['#/people', '가족 앨범', ['#/people', '#/family-tree', '#/growth', '#/timeline'], '인물 · 가계도 · 성장 기록 · 가족 연표'], ['#/post', '우체국', ['#/post'], '편지·카드 · 타임캡슐'], [YT.can('reporter') ? '#/games/lotto' : '#/games', '오락실', ['#/games'], '로또복권 · 즉석 복권 · 사다리타기'], YT.can('admin') && ['#/studio', '사진관', ['#/studio'], '사진 보관·앨범']].filter(Boolean) },
       YT.can('reporter') && { name: '편집국', items: [['#/newsroom', '편집실', ['#/newsroom', '#/write'], '기사 쓰기 · 검토 · 발행'], ['#/reporters', '기자단', ['#/reporters'], '배지 · 시상식'], ['#/points', '원고료', ['#/points'], '포인트 · 쿠폰 가게']] },
       { name: '설정', items: [['#/settings', '설정', ['#/settings'], u ? (YT.can('admin') ? '내 정보 · 화면 · 신문 정보 · 가족 계정 · 자료 관리' : '내 정보 · 화면 설정') : '화면 밝기 · 글자 크기']] },
     ].filter(Boolean);
