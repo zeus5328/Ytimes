@@ -649,7 +649,7 @@ route('GET', '/api/stats', 'admin', () => {
   };
 });
 // 백업 되돌리기: 내려받은 JSON으로 글·일정 자료를 통째로 바꾼다 (가족 계정·비밀번호는 그대로)
-const RESTORE_TABLES = ['settings', 'articles', 'comments', 'reactions', 'events', 'timetables', 'albums', 'folder_links', 'cards', 'people', 'photos', 'polls', 'poll_votes', 'notes', 'items', 'audios', 'points', 'coupons', 'coupon_issues', 'lotto_tickets', 'lotto_draws', 'scratch_tickets'];
+const RESTORE_TABLES = ['settings', 'articles', 'comments', 'reactions', 'events', 'timetables', 'albums', 'folder_links', 'cards', 'people', 'photos', 'polls', 'poll_votes', 'notes', 'items', 'audios', 'points', 'coupons', 'coupon_issues', 'lotto_tickets', 'lotto_draws', 'scratch_tickets', 'deed_menu', 'good_deeds'];
 // 전체 백업에 넣는 사진·소리 파일 이름 (사진 원본·미리보기·소리)
 const UPLOAD_NAME = /^[\w-]{6,80}(\.(jpe?g|png|webp|gif|webm|ogg|m4a|aac|mp3|wav)|_t\.jpg)$/i;
 function uploadNames() {
@@ -1739,6 +1739,70 @@ route('POST', '/api/points/backpay', 'admin', () => {
   for (const a of all("SELECT * FROM articles WHERE deleted=0 AND status='published' ORDER BY published_at")) for (const [, amt] of payManuscript(a)) { n++; sum += amt; }
   return { ok: true, message: n ? `지난 기사 원고료 ${n}건, 모두 ${sum.toLocaleString('ko-KR')}포인트를 줬어요.` : '줄 원고료가 없어요. (이미 모두 받았어요)' };
 });
+
+// ───────────────────────── 착한 일 — 아이가 한 일을 올리면 부모님(시니어기자 이상)이 확인하고 포인트를 준다
+db.exec(`CREATE TABLE IF NOT EXISTS deed_menu (id TEXT PRIMARY KEY, title TEXT NOT NULL, points INTEGER NOT NULL, icon TEXT DEFAULT '', active INTEGER DEFAULT 1, sort INTEGER DEFAULT 0, created TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS good_deeds (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, menu_id TEXT DEFAULT '', title TEXT NOT NULL, note TEXT DEFAULT '', photo TEXT DEFAULT '',
+  points INTEGER NOT NULL DEFAULT 0, status TEXT NOT NULL DEFAULT 'pending', created TEXT NOT NULL, reviewed_at TEXT DEFAULT '', reviewed_by TEXT DEFAULT '', review_note TEXT DEFAULT '');
+CREATE INDEX IF NOT EXISTS good_deeds_status ON good_deeds(status);`);
+if (getSetting('deeds_seeded', '') !== '1') {
+  setSetting('deeds_seeded', '1');
+  if (!get('SELECT COUNT(*) c FROM deed_menu').c)
+    [['🍽️', '설거지 돕기', 500], ['🧹', '내 방 청소', 300], ['👕', '빨래 개기', 300], ['♻️', '분리수거', 300], ['📚', '숙제 먼저 하기', 300],
+     ['🛒', '심부름', 500], ['🤝', '동생·친구 돕기', 300], ['💌', '감사 인사 전하기', 200]].forEach(([ic, t, pt], i) =>
+      run('INSERT INTO deed_menu(id,title,points,icon,active,sort,created) VALUES(?,?,?,?,?,?,?)', uid(), t, pt, ic, 1, i, now()));
+}
+const DEED_DAILY = 10; // 하루에 올릴 수 있는 착한 일 수
+const deedOut = (x) => ({ ...x, user_name: (get('SELECT display_name FROM users WHERE id=?', x.user_id) || {}).display_name || '(없는 계정)',
+  reviewer_name: x.reviewed_by ? (get('SELECT display_name FROM users WHERE id=?', x.reviewed_by) || {}).display_name || '' : '' });
+route('GET', '/api/deeds', 'reporter', ({ user }) => {
+  const approver = isRole(user, 'senior');
+  const out = { menu: all('SELECT * FROM deed_menu ORDER BY sort, created').filter((m) => m.active || isRole(user, 'admin')), approver, admin: isRole(user, 'admin'),
+    mine: all('SELECT * FROM good_deeds WHERE user_id=? ORDER BY created DESC LIMIT 60', user.id).map(deedOut),
+    today: get('SELECT COUNT(*) c FROM good_deeds WHERE user_id=? AND created>=?', user.id, kstDayStart()).c, daily: DEED_DAILY,
+    earned: get("SELECT COALESCE(SUM(points),0) s FROM good_deeds WHERE user_id=? AND status='approved'", user.id).s };
+  if (approver) {
+    out.pending = all("SELECT * FROM good_deeds WHERE status='pending' ORDER BY created").filter((x) => x.user_id !== user.id || isRole(user, 'admin')).map(deedOut);
+    out.recent = all("SELECT * FROM good_deeds WHERE status<>'pending' ORDER BY reviewed_at DESC LIMIT 30").map(deedOut);
+  }
+  return out;
+});
+route('POST', '/api/deeds', 'reporter', ({ user, body }) => {
+  if (get('SELECT COUNT(*) c FROM good_deeds WHERE user_id=? AND created>=?', user.id, kstDayStart()).c >= DEED_DAILY) fail(400, `착한 일은 하루 ${DEED_DAILY}개까지 올릴 수 있어요.`);
+  let title = str(body.title, 40), points = 0, menuId = '';
+  if (body.menu_id) { const m = get('SELECT * FROM deed_menu WHERE id=? AND active=1', body.menu_id) || fail(404, '목록에 없는 착한 일이에요.'); title = m.title; points = m.points; menuId = m.id; }
+  if (!title) fail(400, '어떤 착한 일을 했는지 적어 주세요.');
+  const photo = body.photo && get('SELECT id FROM photos WHERE id=?', body.photo) ? body.photo : '';
+  const id = uid();
+  run('INSERT INTO good_deeds(id,user_id,menu_id,title,note,photo,points,status,created) VALUES(?,?,?,?,?,?,?,?,?)', id, user.id, menuId, title, str(body.note, 300), photo, points, 'pending', now());
+  notify(usersWith('senior', user.id), { kind: 'deed', title: `착한 일 확인 · ${user.display_name}`, body: `${title}${body.note ? ' — ' + str(body.note, 60) : ''}`, link: '#/deeds' });
+  return { ok: true, id };
+});
+route('DELETE', '/api/deeds/:id', 'reporter', ({ user, params }) => {
+  const x = get('SELECT * FROM good_deeds WHERE id=?', params.id) || fail(404, '기록을 찾을 수 없어요.');
+  if (x.user_id !== user.id || x.status !== 'pending') fail(403, '확인 전인 내 기록만 지울 수 있어요.');
+  run('DELETE FROM good_deeds WHERE id=?', x.id); return { ok: true };
+});
+route('POST', '/api/deeds/:id/review', 'senior', ({ user, params, body }) => {
+  const x = get('SELECT * FROM good_deeds WHERE id=?', params.id) || fail(404, '기록을 찾을 수 없어요.');
+  if (x.status !== 'pending') fail(400, '이미 확인한 착한 일이에요.');
+  if (x.user_id === user.id && !isRole(user, 'admin')) fail(403, '내 착한 일은 다른 가족이 확인해 줘요.');
+  if (body.action === 'approve') {
+    const pts = Math.max(0, Math.min(100000, parseInt(body.points, 10) || 0));
+    if (!pts) fail(400, '줄 포인트를 적어 주세요.');
+    if (!run("UPDATE good_deeds SET status='approved', points=?, reviewed_at=?, reviewed_by=?, review_note=? WHERE id=? AND status='pending'", pts, now(), user.id, str(body.note, 200), x.id).changes) fail(400, '이미 확인한 착한 일이에요.');
+    addPoints(x.user_id, pts, `착한 일 · ${x.title}`, 'deed', x.id, user.id);
+    notify([x.user_id], { kind: 'points', title: `착한 일 확인! +${pts.toLocaleString('ko-KR')}포인트`, body: `${x.title}${body.note ? ' — ' + str(body.note, 80) : ''} (${user.display_name})`, link: '#/deeds' });
+  } else if (body.action === 'reject') {
+    run("UPDATE good_deeds SET status='rejected', reviewed_at=?, reviewed_by=?, review_note=? WHERE id=? AND status='pending'", now(), user.id, str(body.note, 200), x.id);
+    notify([x.user_id], { kind: 'deed', title: `착한 일 다시 확인해요 · ${x.title}`, body: str(body.note, 120) || `${user.display_name}님이 아직 확인해 주지 않았어요.`, link: '#/deeds' });
+  } else fail(400, '알 수 없는 요청이에요.');
+  return { ok: true };
+});
+const deedBody = (b) => [str(b.title, 30) || fail(400, '착한 일 이름을 적어 주세요.'), Math.max(1, Math.min(100000, parseInt(b.points, 10) || 0)) || fail(400, '포인트를 적어 주세요.'), str(b.icon, 8), b.active === false || b.active === '0' ? 0 : 1];
+route('POST', '/api/deed-menu', 'admin', ({ body }) => { const [t, p, ic, ac] = deedBody(body); run('INSERT INTO deed_menu(id,title,points,icon,active,sort,created) VALUES(?,?,?,?,?,?,?)', uid(), t, p, ic, ac, get('SELECT COUNT(*) c FROM deed_menu').c, now()); return { ok: true }; });
+route('PUT', '/api/deed-menu/:id', 'admin', ({ body, params }) => { const [t, p, ic, ac] = deedBody(body); run('UPDATE deed_menu SET title=?, points=?, icon=?, active=? WHERE id=?', t, p, ic, ac, params.id); return { ok: true }; });
+route('DELETE', '/api/deed-menu/:id', 'admin', ({ params }) => { run('DELETE FROM deed_menu WHERE id=?', params.id); return { ok: true }; });
 
 // ───────────────────────── 오락실: 주간 로또 · 즉석 복권 (원고료 포인트로)
 db.exec(`CREATE TABLE IF NOT EXISTS lotto_tickets (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, round INTEGER NOT NULL, numbers TEXT NOT NULL, auto INTEGER DEFAULT 0,

@@ -2088,3 +2088,31 @@ div.gl:hover { border-color: var(--line); }
 .ld-quick { display: flex; flex-wrap: wrap; gap: .375rem; align-items: center; }
 .ld-row > .ld-bot { width: calc(var(--cw, 92px) - 6px); margin: .375rem 3px 0; }
 .ld-top i { font-size: 1rem; }
+/* 착한 일 */
+.dd-hero { background: linear-gradient(135deg, #1E5A45 0%, #2E7D5B 55%, #5FA36F 100%); }
+.dd-menu { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 9.5rem), 1fr)); gap: .5rem; }
+.dd-item { display: grid; justify-items: center; gap: .25rem; padding: 1rem .5rem .875rem; border: 1.5px solid var(--line); border-radius: var(--r-lg); background: var(--bg); color: var(--ink); cursor: pointer; transition: transform .12s, border-color .12s; }
+.dd-item:hover { transform: translateY(-2px); border-color: #2E7D5B; }
+.dd-item .dd-ic { font-size: 1.875rem; line-height: 1; }
+.dd-item b { font-size: .875rem; } .dd-item small { font-size: .75rem; font-weight: 700; color: #2E7D5B; }
+.dd-item.free { border-style: dashed; } .dd-item.free small { color: var(--muted); font-weight: 600; }
+.dd-list { display: grid; gap: .5rem; }
+.dd-card { display: flex; gap: .875rem; align-items: center; padding: .75rem .875rem; border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--bg); }
+.dd-card.wait { border-style: dashed; } .dd-card.ok { border-color: color-mix(in srgb, #2E7D5B 40%, var(--line)); } .dd-card.no { opacity: .7; }
+.dd-card > .dd-ic { font-size: 1.75rem; width: 2.75rem; text-align: center; flex: none; }
+.dd-ph { width: 3.5rem; height: 3.5rem; border-radius: var(--r); object-fit: cover; flex: none; }
+.dd-body { flex: 1; min-width: 0; display: grid; gap: .125rem; }
+.dd-top { display: flex; flex-wrap: wrap; gap: .375rem; align-items: center; font-size: .9375rem; }
+.dd-who { color: #2E7D5B; }
+.dd-badge { font-size: .6875rem; font-weight: 700; padding: .125rem .5rem; border-radius: 999px; background: var(--surface-2); color: var(--muted); }
+.dd-card.ok .dd-badge { background: color-mix(in srgb, #2E7D5B 14%, var(--surface)); color: #2E7D5B; }
+.dd-body p { margin: 0; font-size: .8125rem; color: var(--ink-2); }
+.dd-body small { font-size: .75rem; }
+.dd-side { display: grid; justify-items: end; gap: .375rem; flex: none; }
+.dd-plus { font-size: 1rem; font-weight: 800; color: #2E7D5B; }
+.dd-pts { display: flex; align-items: center; gap: .25rem; } .dd-pts input { width: 5.5rem; text-align: right; } .dd-pts span { font-weight: 700; color: var(--muted); }
+.dd-count { display: inline-grid; place-items: center; min-width: 1.5rem; height: 1.5rem; padding: 0 .375rem; margin-left: .25rem; border-radius: 999px; background: var(--seal); color: #fff; font-size: .75rem; }
+.dd-review { border-color: color-mix(in srgb, #2E7D5B 45%, var(--line)); }
+.dd-edit { display: grid; gap: .5rem; } .dd-row { align-items: end; padding-bottom: .5rem; border-bottom: 1px solid var(--line); }
+@media (max-width: 560px) { .dd-card { flex-wrap: wrap; } .dd-side { width: 100%; grid-auto-flow: column; justify-content: end; align-items: center; } }
+.dd-pts .input.sm { width: 5.5rem; flex: none; }
