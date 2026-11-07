@@ -121,6 +121,8 @@ function getSetting(key, def = '') { const r = get('SELECT value FROM settings W
 function setSetting(key, value) { run('INSERT INTO settings(key,value) VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value', key, String(value)); }
 const tags = (s) => [...new Set(String(s || '').split(/[\s,]+/).map(t => t.replace(/^#+/, '').trim()).filter(Boolean))].slice(0, 10);
 const tagStr = (s) => tags(s).map(t => '#' + t).join(' ');
+// 가족 그룹 이름 — 띄어쓰기만 다른 이름은 하나로 ('우리가족' → '우리 가족', '친구지인' → '친구·지인')
+const groupName = (g) => { const t = String(g || '').trim(), k = t.replace(/[\s·.,/]/g, ''); return k === '우리가족' ? '우리 가족' : k === '친구지인' ? '친구·지인' : t; };
 
 // ───────────────────────── photos
 function savePhoto(dataUrl, kind, ownerId, extra = {}) {
@@ -1356,7 +1358,7 @@ function peopleIndex() {
   const groupWords = new Set(['친구']);
   for (const e of all('SELECT hashtags FROM events WHERE deleted=0')) for (const t of tags(e.hashtags)) add(t).event_count++;
   for (const a of all("SELECT hashtags FROM articles WHERE deleted=0 AND status='published'")) for (const t of tags(a.hashtags)) add(t).article_count++;
-  for (const p of all('SELECT * FROM people')) Object.assign(add(p.name), { relation: p.relation, family_group: p.family_group, bio: p.bio, photo: p.photo, emoji: p.emoji, father: p.father || '', mother: p.mother || '', spouse: p.spouse || '', has_profile: true });
+  for (const p of all('SELECT * FROM people')) Object.assign(add(p.name), { relation: p.relation, family_group: groupName(p.family_group), bio: p.bio, photo: p.photo, emoji: p.emoji, father: p.father || '', mother: p.mother || '', spouse: p.spouse || '', has_profile: true });
   // 지역/그룹 태그(이름이 아닌 것) 구분: 프로필이 없고 2글자 이상 지명/그룹처럼 쓰인 태그는 group으로 분류
   const groups = new Set();
   for (const e of all('SELECT hashtags FROM events WHERE deleted=0')) {
@@ -1373,6 +1375,7 @@ route('GET', '/api/people/:name', null, ({ params, user }) => {
   const like = `%#${name}%`;
   const profile = get('SELECT * FROM people WHERE name=?', name) || { name };
   if (!isRole(user, 'subscriber')) delete profile.facetime; // 페이스타임 연락처는 로그인한 가족에게만
+  if (profile.family_group) profile.family_group = groupName(profile.family_group);
   const evs = all('SELECT * FROM events WHERE deleted=0 AND (hashtags LIKE ? OR title LIKE ?)', like, `%${name}%`)
     .filter(e => tags(e.hashtags).includes(name) || e.title.includes(name)).map(e => publicEvent(e));
   const y = new Date().getFullYear();
@@ -1395,7 +1398,7 @@ route('PUT', '/api/people/:name', 'staff', ({ params, body }) => {
   run(`INSERT INTO people(name,relation,family_group,bio,photo,emoji,father,mother,spouse,updated) VALUES(?,?,?,?,?,?,?,?,?,?)
     ON CONFLICT(name) DO UPDATE SET relation=excluded.relation, family_group=excluded.family_group, bio=excluded.bio, photo=excluded.photo, emoji=excluded.emoji,
     father=excluded.father, mother=excluded.mother, spouse=excluded.spouse, updated=excluded.updated`,
-    name, pick('relation', 30), pick('family_group', 30), pick('bio', 1000), photo, pick('emoji', 8), rel('father'), rel('mother'), spouse, now());
+    name, pick('relation', 30), groupName(pick('family_group', 30)), pick('bio', 1000), photo, pick('emoji', 8), rel('father'), rel('mother'), spouse, now());
   // 배우자는 서로 이어 준다 (예전 배우자 연결은 풀기)
   if ('facetime' in body) run('UPDATE people SET facetime=? WHERE name=?', ftContact(body.facetime) || '', name);
   if ('spouse' in body) {
