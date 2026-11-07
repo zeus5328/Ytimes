@@ -1,0 +1,27 @@
+<!doctype html><html lang="ko"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>글꼴 시험</title>
+<style>body{font-family:-apple-system,sans-serif;margin:16px;line-height:1.5}li{margin:.6rem 0;list-style:none;border-bottom:1px solid #ddd;padding-bottom:.6rem}b{display:inline-block;min-width:4.5em}.s{font-size:22px}</style>
+<h2>유니 타임즈 글꼴 시험</h2><p id="ua"></p><ul id="out"></ul>
+<script>
+document.getElementById('ua').textContent = navigator.userAgent;
+const files = [
+  ['조각 woff2 (본문 보통)', 'Paperlogy-Regular-core3.woff2'],
+  ['조각 woff (본문 보통)', 'Paperlogy-Regular-core3.woff'],
+  ['원본 woff2 (본문 보통)', 'Paperlogy-4Regular.woff2'],
+  ['조각 woff2 (굵게)', 'Paperlogy-Bold-core3.woff2'],
+  ['원본 woff2 (굵게)', 'Paperlogy-7Bold.woff2'],
+  ['조각 woff2 (제호)', 'PyeongChangPeace-Bold-core3.woff2'],
+];
+const out = document.getElementById('out');
+files.forEach(([label, f], i) => {
+  const li = document.createElement('li'); li.innerHTML = `<b>…</b> ${label}<div class="s">가족 신문 유니 타임즈 Hello 123</div>`; out.appendChild(li);
+  const ff = new FontFace('T' + i, `url(${f}?t=${Date.now()})`);
+  ff.load().then(x => { document.fonts.add(x); li.querySelector('.s').style.fontFamily = 'T' + i; li.querySelector('b').textContent = '✅ 성공'; })
+    .catch(e => { li.querySelector('b').textContent = '❌ 실패'; li.querySelector('.s').textContent = String(e && e.message || e); });
+});
+const fam = document.createElement('li');
+fam.innerHTML = '<b>…</b> 사이트 설정(fonts.css) 그대로<div class="s" style="font-family:Paperlogy">가족 신문 유니 타임즈 Hello 123</div>';
+out.appendChild(fam);
+const l = document.createElement('link'); l.rel = 'stylesheet'; l.href = 'fonts.css?t=' + Date.now(); document.head.appendChild(l);
+l.onload = () => document.fonts.load('16px Paperlogy', '가').then(r => { fam.querySelector('b').textContent = r.length ? '✅ 성공' : '❌ 실패'; });
+</script>
