@@ -348,12 +348,14 @@ function parseBlocks(a) { try { return JSON.parse(a.blocks || '[]'); } catch { r
 function coIds(a) { try { const v = JSON.parse(a.coauthors || '[]'); return Array.isArray(v) ? v.filter((x) => typeof x === 'string') : []; } catch { return []; } }
 const writers = (a) => [a.author_id, ...coIds(a)].filter(Boolean);
 const isWriter = (a, user) => !!user && writers(a).includes(user.id);
+// 기사에 보이는 대표 기자 이름 — 계정이 있으면 지금 계정 이름을(작성자를 바꾸거나 이름을 바꿔도 맞게), 없으면 적어 둔 이름
+const leadName = (a) => (a.author_id && (get('SELECT display_name FROM users WHERE id=?', a.author_id) || {}).display_name) || a.author_name || '';
 function articleOut(a, user, full = true) {
   const blocks = parseBlocks(a);
   const text = blocks.filter(b => b.type === 'text').map(b => b.text).join('\n\n');
   const o = {
     id: a.id, title: a.title, category: a.category, section: a.section, issue_month: a.issue_month, hashtags: a.hashtags,
-    status: a.status, photo: a.photo, photo_caption: a.photo_caption, author_name: a.author_name || '유니 타임즈',
+    status: a.status, photo: a.photo, photo_caption: a.photo_caption, author_name: leadName(a) || '유니 타임즈',
     revision: a.revision, review_note: a.review_note, created: a.created, updated: a.updated, published_at: a.published_at,
     deleted: a.deleted, is_own: isWriter(a, user), is_main_author: !!(user && a.author_id === user.id), excerpt: text.slice(0, 220),
     photo_count: blocks.filter(b => b.type === 'photo').length + (a.photo ? 1 : 0),
@@ -893,13 +895,13 @@ route('POST', '/api/articles/:id/action', 'reporter', ({ params, body, user }) =
     body.action === 'changes' ? str(body.note, 500) : (body.action === 'request' ? '' : a.review_note), now(),
     t[1] === 'published' ? now() : a.published_at, a.id);
   const link = `#/article/${a.id}`;
-  if (body.action === 'request') notify(usersWith('senior').filter((id) => !writers(a).includes(id)), { kind: 'review', title: `승인 요청 · ${a.title}`, body: `${a.author_name || '기자'}님이 검토를 요청했어요.`, link });
+  if (body.action === 'request') notify(usersWith('senior').filter((id) => !writers(a).includes(id)), { kind: 'review', title: `승인 요청 · ${a.title}`, body: `${leadName(a) || '기자'}님이 검토를 요청했어요.`, link });
   if (body.action === 'changes') notify(writers(a).filter((id) => id !== user.id), { kind: 'changes', title: `수정 요청 · ${a.title}`, body: str(body.note, 200) || '편집실에서 검토 메모를 확인하세요.', link: '#/newsroom' });
   if (body.action === 'approve') notify(writers(a).filter((id) => id !== user.id), { kind: 'approved', title: `승인됐어요 · ${a.title}`, body: `${user.display_name}님이 승인했어요.`, link });
   if (body.action === 'publish') {
     payManuscript(get('SELECT * FROM articles WHERE id=?', a.id));
     notify(writers(a).filter((id) => id !== user.id), { kind: 'published', title: `신문에 실렸어요 · ${a.title}`, body: '가족들이 읽을 수 있어요.', link });
-    notify(usersWith('subscriber', user.id).filter((id) => !writers(a).includes(id)), { kind: 'news', title: `새 기사 · ${a.title}`, body: `${a.section || ''} · ${a.author_name || ''}`, link, ukey: `news:${a.id}` });
+    notify(usersWith('subscriber', user.id).filter((id) => !writers(a).includes(id)), { kind: 'news', title: `새 기사 · ${a.title}`, body: `${a.section || ''} · ${leadName(a)}`, link, ukey: `news:${a.id}` });
   }
   return { article: articleOut(get('SELECT * FROM articles WHERE id=?', a.id), user) };
 });
@@ -1314,7 +1316,7 @@ route('GET', '/api/reporter-stats', null, ({ query }) => {
     return { id: u.id, name: u.display_name, role_label: ROLE_LABEL[u.role], articles: mine.length, photos, comments: cm, notes: nt, cards, sections, views, reactions: rx,
       first: mine.map((a) => a.published_at).filter(Boolean).sort()[0] || '' };
   }).filter((s) => s.articles || s.comments || s.notes || s.cards);
-  const top = arts.map((a) => ({ id: a.id, title: a.title, author_name: a.author_name, section: a.section, score: (a.views || 0) + 3 * get('SELECT COUNT(*) c FROM reactions WHERE article_id=?', a.id).c + 3 * get('SELECT COUNT(*) c FROM comments WHERE article_id=? AND deleted=0', a.id).c }))
+  const top = arts.map((a) => ({ id: a.id, title: a.title, author_name: leadName(a), section: a.section, score: (a.views || 0) + 3 * get('SELECT COUNT(*) c FROM reactions WHERE article_id=?', a.id).c + 3 * get('SELECT COUNT(*) c FROM comments WHERE article_id=? AND deleted=0', a.id).c }))
     .sort((p, q) => q.score - p.score).slice(0, 8);
   return { year: y, stats, top };
 });
@@ -1698,7 +1700,7 @@ figcaption{font-size:.8rem;color:#545C55;margin-top:.25rem}audio{width:100%}.au{
     const body = blocks.map((b) => b.type === 'photo' ? `<figure><img src="${base}/p/${h(b.photo)}" alt="" loading="lazy">${b.caption ? `<figcaption>${h(b.caption)}</figcaption>` : ''}</figure>`
       : b.type === 'audio' ? `<div class="au"><b>${h(b.caption || '목소리 듣기')}</b><audio controls preload="none" src="${base}/s/${h(b.audio)}"></audio></div>`
       : String(b.text || '').split(/\n{2,}/).map((t) => t.trim()).filter(Boolean).map((t) => `<p>${h(t).replace(/\n/g, '<br>')}</p>`).join('')).join('');
-    const names = [a.author_name || site, ...coIds(a).map((cid) => (get('SELECT display_name FROM users WHERE id=?', cid) || {}).display_name).filter(Boolean)].join('·');
+    const names = [leadName(a) || site, ...coIds(a).map((cid) => (get('SELECT display_name FROM users WHERE id=?', cid) || {}).display_name).filter(Boolean)].join('·');
     return `<article><div class="k">${h(a.section)}${a.category ? ' · ' + h(a.category) : ''}</div><h2>${h(a.title)}</h2><div class="meta">${h(names)} 기자 · ${h((a.published_at || a.updated || '').slice(0, 10))}</div>${lead}${body}</article>`;
   };
   return page(200, `${site} ${y}년 ${m}월호`, `<header class="mast"><small>${h(getSetting('kicker', ''))}</small><h1>${h(site)}</h1><small>${y}년 ${m}월호 · 기사 ${arts.length}편</small></header>
