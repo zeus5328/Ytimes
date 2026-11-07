@@ -109,6 +109,16 @@
           <label class="btn small" for="mascotFile">로고 올리기</label><input type="file" accept="image/*" id="mascotFile" hidden>${S.mascot ? '<button type="button" class="btn small" data-round="mascot">원형으로 투명하게</button><button type="button" class="btn small" data-knock="mascot">검은 배경 투명하게</button><button type="button" class="btn small danger ghost" id="mascotRm">로고 빼기</button>' : ''}</div></div>
         <div class="set-actions"><button class="btn primary">신문 정보 저장</button></div></form>`, { desc: '1면 제호, 머리·바닥 문구, 이달의 지면에 함께 쓰여요.' })
       + panel('누가 볼 수 있나요', row('가족만 보기', S.members_only === '1' ? '켜짐 — 가족 계정으로 로그인해야 신문을 볼 수 있어요. 계정 없는 친척은 지면의 ‘친척에게 링크 보내기’로 보내 주세요.' : '꺼짐 — 사이트 주소를 아는 사람은 누구나 발행된 기사를 읽을 수 있어요.', toggle('members_only', S.members_only === '1', '가족만 보기')))
+      + panel('자동 축하 카드', [
+          ['auto_card_birthday', '생일 축하 카드', '가족 생일날 그 사람에게 생일 카드'],
+          ['auto_card_anniversary', '기념일 축하 카드', '결혼기념일 등 기념일에 주인공에게 기념일 카드 (몇 주년인지 함께)'],
+          ['auto_card_christmas', '크리스마스 카드', '12월 25일 우리 가족 모두에게'],
+          ['auto_card_newyear', '새해 연하장', '1월 1일 우리 가족 모두에게'],
+          ['auto_card_seollal', '설날 연하장', '음력 1월 1일 우리 가족 모두에게'],
+          ['auto_card_friends', '친구·지인 생일에도', '켜면 친구·지인 생일에도 생일 카드를 보내요'],
+        ].map(([k, l, h]) => row(l, h, toggle(k, S[k] === '1', l))).join('')
+        + `<form class="set-inline mt" id="acFrom"><label class="grow">보내는 사람<input class="input" name="auto_card_from" maxlength="30" value="${esc(S.auto_card_from || '유니 타임즈 발행인 일동')}"></label><button class="btn">저장</button></form>`,
+        { desc: '그날이 되면 우체국에 공개 카드가 저절로 올라가고, 받는 가족에게 알림이 가요. 하루에 한 번, 가족이 사이트를 열 때 보내요. 보낸 카드는 우체국에서 관리자가 고치거나 지울 수 있어요.' })
       + panel('장소 검색 (카카오)', `<div id="kakaoBox"><p class="muted small">불러오는 중…</p></div>`, { desc: '기사 쓰기의 ‘장소 고르기’에서 가게·식당 이름까지 잘 찾게 해 줘요. 키가 없으면 오픈스트리트맵으로 찾아요.' })
       + panel('미리보기', `<div class="set-mast"><small>${esc(S.kicker)}</small><b>${esc(S.site_name)}</b><span>${esc(S.tagline)} · 창간 ${esc(S.founded)}</span></div>`);
   }
@@ -149,6 +159,11 @@
         YT.toast(round ? '원형으로 다듬고 바깥을 투명하게 바꿨어요.' : '검은 배경을 투명하게 바꿨어요.'); draw(view, 'paper', true);
       } catch (err) { YT.err(err); b.disabled = false; b.textContent = label; }
     });
+    view.querySelectorAll('input[name^=auto_card_]').forEach((cb) => { if (cb.type === 'checkbox') cb.onchange = async () => {
+      try { const r = await YT.put('/api/settings', { [cb.name]: cb.checked ? '1' : '0' }); YT.state.settings = r.settings; YT.toast(`${cb.getAttribute('aria-label')} ${cb.checked ? '켰어요' : '껐어요'}.`); } catch (err) { YT.err(err); cb.checked = !cb.checked; }
+    }; });
+    const acf = YT.$('#acFrom');
+    if (acf) acf.onsubmit = async (e) => { e.preventDefault(); try { const r = await YT.put('/api/settings', { auto_card_from: acf.auto_card_from.value }); YT.state.settings = r.settings; YT.toast('보내는 사람 이름을 저장했어요.'); } catch (err) { YT.err(err); } };
     const mo = view.querySelector('input[name=members_only]');
     if (mo) mo.onchange = async () => {
       if (mo.checked && !YT.confirm('가족만 보기를 켤까요? 로그인하지 않은 사람은 기사·사진·일정을 볼 수 없게 돼요.')) { mo.checked = false; return; }

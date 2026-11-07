@@ -282,6 +282,7 @@ const usersWith = (minRole, except) => all('SELECT id, role FROM users').filter(
 // 오늘·내일 생일과 기념일 — 알림함을 열 때 그 사람 몫을 만든다
 const pointsChecked = new Map(); // user.id → 마지막으로 확인한 날 (한국 시간)
 function birthdayNotices(user) {
+  try { autoCards(); } catch (e) { console.error('자동 축하 카드:', e.message); }
   // 생일·매달 포인트는 사람마다 하루 한 번만 확인 (알림을 열 때마다 계산하지 않게)
   if (user && pointsChecked.get(user.id) !== kstToday()) {
     try { birthdayPoints(user); } catch (e) { console.error('생일 포인트:', e.message); }
@@ -484,6 +485,8 @@ if (!all('PRAGMA table_info(articles)').some((c) => c.name === 'coauthors')) db.
 if (!all('PRAGMA table_info(comments)').some((c) => c.name === 'parent_id')) db.exec('ALTER TABLE comments ADD COLUMN parent_id TEXT');
 if (!all('PRAGMA table_info(articles)').some((c) => c.name === 'place')) db.exec("ALTER TABLE articles ADD COLUMN place TEXT DEFAULT ''");   // 여행 지도 {name,lat,lng}
 if (!all('PRAGMA table_info(cards)').some((c) => c.name === 'open_on')) db.exec("ALTER TABLE cards ADD COLUMN open_on TEXT DEFAULT ''");    // 타임캡슐 여는 날
+if (!all('PRAGMA table_info(cards)').some((c) => c.name === 'auto_key')) db.exec("ALTER TABLE cards ADD COLUMN auto_key TEXT");    // 자동 축하 카드 — 같은 날 두 번 보내지 않게
+try { db.exec('CREATE UNIQUE INDEX IF NOT EXISTS cards_auto_key ON cards(auto_key)'); } catch {}
 // 우리 집 기록 (연표·성장·버킷리스트·당번·가족회의) — 종류별 자료를 한 표에
 db.exec(`CREATE TABLE IF NOT EXISTS items (id TEXT PRIMARY KEY, kind TEXT NOT NULL, data TEXT NOT NULL DEFAULT '{}', date TEXT DEFAULT '',
   author_id TEXT, author_name TEXT DEFAULT '', created TEXT NOT NULL, updated TEXT NOT NULL, deleted INTEGER DEFAULT 0);
@@ -548,6 +551,7 @@ function settingsOut() {
     mascot: getSetting('mascot', ''), // 아래쪽 신문 이름 왼쪽의 유니 사진
     members_only: getSetting('members_only', '0') === '1' ? '1' : '0',
     cloud: CLOUD ? '1' : '',
+    ...autoCardConf(),
   };
 }
 route('POST', '/api/setup', null, ({ body, res }) => {
@@ -643,6 +647,9 @@ route('DELETE', '/api/users/:id', 'admin', ({ params, user }) => {
 route('PUT', '/api/settings', 'admin', ({ body }) => {
   for (const k of ['site_name', 'tagline', 'kicker', 'founded', 'editor_note', 'logo', 'mascot']) if (k in body) setSetting(k, str(body[k], 2000));
   if ('members_only' in body) setSetting('members_only', body.members_only === '1' || body.members_only === true ? '1' : '0');
+  for (const k of Object.keys(AUTO_CARD_DEFAULTS)) if (k in body) setSetting(k, body[k] === '1' || body[k] === true ? '1' : '0');
+  if ('auto_card_from' in body) setSetting('auto_card_from', str(body.auto_card_from, 30) || AUTO_CARD_FROM);
+  autoCardsDay = ''; // 켜자마자 오늘 것부터 확인
   return { settings: settingsOut() };
 });
 // 설정 → 자료 관리: 한눈에 보는 숫자
@@ -1192,6 +1199,7 @@ function cardOut(c, user) {
   return o;
 }
 route('GET', '/api/cards', null, ({ user }) => {
+  try { autoCards(); } catch (e) { console.error('자동 축하 카드:', e.message); }
   const rows = isRole(user, 'admin') ? all('SELECT * FROM cards WHERE deleted=0 ORDER BY updated DESC')
     : user ? all('SELECT * FROM cards WHERE deleted=0 AND (is_public=1 OR author_id=?) ORDER BY updated DESC', user.id)
       : all('SELECT * FROM cards WHERE deleted=0 AND is_public=1 ORDER BY updated DESC');
@@ -1867,6 +1875,72 @@ function talkPoints(user, kind, ref, reason, cap) {
   return addPoints(user.id, amt, reason, kind, ref) ? amt : 0;
 }
 const CARD_NAMES = { letter: '편지', birthday: '생일 카드', anniversary: '기념일 카드', christmas: '크리스마스 카드', newyear: '연하장' };
+
+// ───────────────────────── 자동 축하 카드 — 생일·기념일·크리스마스·새해(설날)에 ‘발행인 일동’ 이름으로 우체국에 카드를 올린다
+// 설정 › 신문 정보에서 하나씩 켜고 끈다. 하루에 한 번, 가족이 사이트를 열 때 확인하고 auto_key로 같은 카드를 두 번 만들지 않는다
+const AUTO_CARD_FROM = '유니 타임즈 발행인 일동';
+const AUTO_CARD_DEFAULTS = { auto_card_birthday: '1', auto_card_anniversary: '1', auto_card_christmas: '1', auto_card_newyear: '1', auto_card_seollal: '0', auto_card_friends: '0' };
+function autoCardConf() {
+  const o = {}; for (const [k, d] of Object.entries(AUTO_CARD_DEFAULTS)) o[k] = getSetting(k, d) === '1' ? '1' : '0';
+  o.auto_card_from = getSetting('auto_card_from', AUTO_CARD_FROM) || AUTO_CARD_FROM; return o;
+}
+const pickOf = (arr, seed) => arr[[...String(seed)].reduce((a, c) => a + c.charCodeAt(0), 0) % arr.length];
+const AUTO_MSG = {
+  birthday: [
+    (n, x) => `${n} 님, 생일 축하합니다!${x.nth ? `\n\n${x.nth}번째 생일을` : '\n\n오늘을'} 온 가족이 함께 기뻐해요.\n늘 웃음이 가득하고, 하고 싶은 일 모두 이루는 한 해 되세요.\n\n언제나 응원하는 유니 타임즈 가족이`,
+    (n, x) => `${n} 님의 생일을 진심으로 축하드립니다.\n\n${x.nth ? `${x.nth}번째 생일, ` : ''}건강하고 행복한 날들이 이어지기를 바라요.\n오늘은 마음껏 축하받는 날이에요!`,
+    (n) => `해피 버스데이, ${n} 님!\n\n${n} 님 덕분에 우리 가족의 하루가 더 따뜻해요.\n맛있는 것 많이 먹고, 신나는 하루 보내세요. 🎂`,
+  ],
+  anniversary: [
+    (n, x) => `${x.what}${x.years ? ` ${x.years}주년` : ''}을 축하드립니다.\n\n함께 걸어온 시간이 우리 가족의 가장 큰 이야기예요.\n앞으로도 서로를 아끼며 행복한 날들 가득하세요.`,
+    (n, x) => `오늘은 ${n} 님의 ${x.what}${x.years ? ` ${x.years}주년` : ''}이에요.\n\n그날의 설렘을 기억하며, 온 가족이 마음을 모아 축하합니다. 💐`,
+  ],
+  christmas: [
+    () => `메리 크리스마스!\n\n올 한 해도 서로의 곁을 지켜 준 우리 가족, 정말 고마워요.\n따뜻하고 행복한 성탄절 보내세요. 🎄`,
+    () => `기쁜 성탄을 축하합니다.\n\n함께 웃고 함께 기록한 올해의 이야기들이 모두 선물이었어요.\n즐거운 크리스마스 되세요!`,
+  ],
+  newyear: [
+    (n, x) => `${x.year}년 새해 복 많이 받으세요!\n\n지난해 함께해 주어 고마워요.\n올해도 건강하고, 웃을 일이 가득한 한 해 되길 바랍니다.`,
+    (n, x) => `희망찬 ${x.year}년이 밝았습니다.\n\n올해도 우리 가족의 소중한 순간들을 유니 타임즈에 함께 담아요.\n새해 복 많이 받으세요!`,
+  ],
+  seollal: [
+    () => `즐거운 설날 보내세요!\n\n온 가족이 모여 떡국 한 그릇에 한 살 더 먹는 날,\n올해도 건강하고 복 많이 받으세요.`,
+  ],
+};
+function sendAutoCard({ key, type, to, title, message, owners = [] }) {
+  if (get('SELECT 1 FROM cards WHERE auto_key=?', key)) return false;
+  const id = uid(), t = now(), from = autoCardConf().auto_card_from;
+  try {
+    run(`INSERT INTO cards(id,type,design,color,to_name,from_name,card_date,title,message,photo,is_public,author_id,created,updated,open_on,auto_key) VALUES(?,?,?,?,?,?,?,?,?,NULL,1,NULL,?,?,'',?)`,
+      id, type, Math.abs(key.length * 7) % 4, pickOf(['ivory', 'rose', 'sage', 'midnight'], key), str(to, 30), from, kstToday(), str(title, 60), message.slice(0, 1500), t, t, key);
+  } catch { return false; } // 다른 서버가 먼저 만들었으면 그대로
+  const accounts = all('SELECT id, display_name FROM users');
+  const ids = owners.length ? accounts.filter((u) => owners.includes(u.display_name)).map((u) => u.id) : accounts.map((u) => u.id);
+  notify(ids, { kind: 'card', title: `${CARD_NAMES[type]}가 도착했어요 · ${from}`, body: title, link: '#/post?card=' + id, ukey: 'autocard:' + key });
+  return true;
+}
+let autoCardsDay = '';
+function autoCards() {
+  const today = kstToday(); if (autoCardsDay === today) return; autoCardsDay = today;
+  const c = autoCardConf(), y = +today.slice(0, 4), md = today.slice(5);
+  const occ = occurrencesForYear(y).filter((o) => o.date === today);
+  if (c.auto_card_birthday === '1') for (const o of occ.filter((o) => o.kind === 'birthday' && o.owner)) {
+    if (o.friend_of || personGroup(o.owner) === '친구·지인') { if (c.auto_card_friends !== '1') continue; }
+    const nth = o.full_age && o.full_age > 0 ? o.full_age : 0;
+    sendAutoCard({ key: `birthday:${o.id}:${today}`, type: 'birthday', to: o.owner, owners: [o.owner, o.friend_of].filter(Boolean),
+      title: `${o.owner} 님, 생일 축하합니다!`, message: pickOf(AUTO_MSG.birthday, o.id + today)(o.owner, { nth }) });
+  }
+  if (c.auto_card_anniversary === '1') for (const o of occ.filter((o) => o.kind === 'anniversary' && o.anniversary_years > 0)) {
+    const what = String(o.title).replace(/\([^)]*\)/g, '').trim() || '기념일', who = (o.owners || []).join(' · ');
+    sendAutoCard({ key: `anniversary:${o.id}:${today}`, type: 'anniversary', to: who || '우리 가족', owners: o.owners || [],
+      title: `${what} ${o.anniversary_years}주년을 축하합니다`, message: pickOf(AUTO_MSG.anniversary, o.id + today)(who || '우리 가족', { what, years: o.anniversary_years }) });
+  }
+  if (c.auto_card_christmas === '1' && md === '12-25')
+    sendAutoCard({ key: `christmas:${y}`, type: 'christmas', to: '우리 가족 모두', title: `${y} 메리 크리스마스`, message: pickOf(AUTO_MSG.christmas, y)() });
+  if (c.auto_card_newyear === '1' && md === '01-01')
+    sendAutoCard({ key: `newyear:${y}`, type: 'newyear', to: '우리 가족 모두', title: `${y}년 새해 복 많이 받으세요`, message: pickOf(AUTO_MSG.newyear, y)('', { year: y }) });
+  if (c.auto_card_seollal === '1') { const r = lunarToSolar(y, 1, 1, false); if (r && r.date === today) sendAutoCard({ key: `seollal:${y}`, type: 'newyear', to: '우리 가족 모두', title: `${y}년 설날 인사`, message: AUTO_MSG.seollal[0]() }); }
+}
 const pointRate = () => ({ bonus: Math.max(0, parseInt(getSetting('points_corner_bonus', '500'), 10) || 0), talk: Math.max(0, parseInt(getSetting('points_talk', '300'), 10) || 0), card: Math.max(0, parseInt(getSetting('points_card', '1000'), 10) || 0), lead: Math.max(0, parseInt(getSetting('points_article', '2000'), 10) || 0), co: Math.max(0, parseInt(getSetting('points_coauthor', '500'), 10) || 0), bday: Math.max(0, parseInt(getSetting('points_birthday', '20000'), 10) || 0) });
 const balance = (userId) => get('SELECT COALESCE(SUM(amount),0) s FROM points WHERE user_id=?', userId).s;
 function addPoints(userId, amount, reason, kind = 'manual', ref = '', byId = '') {
