@@ -36,8 +36,9 @@
     const first = todays[0];
     // 오늘 주인공에게 바로 페이스타임 (가족 앨범에 연락처가 있으면)
     const contacts = (ft && ft.contacts) || {};
-    const calls = [...new Set(todays.flatMap((o) => Object.keys(contacts).filter((n) => o.title.includes(n))))];
-    const to = YT.tags(first.hashtags).find((t) => first.title.includes(t)) || '';
+    // 오늘의 주인(생일이면 그 사람, 기념일이면 두 사람) — 친구 생일에 가족을 잘못 잇지 않게 제목이 아니라 주인으로
+    const calls = [...new Set(todays.flatMap((o) => (o.owners || []).filter((n) => contacts[n])))];
+    const to = first.owner || '';
     return `<section class="celebrate" aria-label="오늘의 축하">
       <div class="cel-body"><span class="cel-label">오늘은</span>
         ${todays.map((o) => `<span class="cel-item"><b>${esc(o.title)}</b>${o.age ? ` <small>${o.age}세</small>` : ''}${o.anniversary_years ? ` <small>${o.anniversary_years}주년</small>` : ''}</span>`).join('')}</div>

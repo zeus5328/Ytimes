@@ -189,6 +189,7 @@
       <div class="ev-date">${esc(o.date)}${o.end_date && o.end_date > o.date ? ' ~ ' + esc(o.end_date) : ''} · ${o.time ? esc(o.time) + (o.end_time ? '–' + esc(o.end_time) : '') : '종일'}${o.kind !== 'event' ? ' · 매년 반복' : ''}</div>
       <div class="ev-title">${YT.eventIcon(o)} ${esc(o.title)}</div>
       ${YT.eventMeta(o) ? `<div class="ev-meta">${esc(YT.eventMeta(o))}</div>` : ''}
+      ${o.kind !== 'event' && (o.owners || []).length ? `<div class="ev-who">${o.owners.map((n) => `<a class="tag" href="#/people/${encodeURIComponent(n)}">${esc(n)}</a>`).join('')}${o.friend_of ? `<span class="muted small">${esc(o.friend_of)}의 친구</span>` : ''}</div>` : ''}
       ${o.location ? `<div class="ev-meta">장소 · ${esc(o.location)}</div>` : ''}
       ${o.notes ? `<div class="ev-meta">${esc(o.notes)}</div>` : ''}
     </li>`;

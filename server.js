@@ -266,6 +266,7 @@ function publicEvent(e, user) {
     end_time: e.end_time, location: e.location, notes: e.notes, birth_year: e.birth_year, birth_month: e.birth_month,
     birth_day: e.birth_day, is_leap: e.is_leap, hashtags: e.hashtags, created: e.created, deleted: e.deleted,
     author_id: e.author_id, repeat: e.repeat || '', repeat_until: e.repeat_until || '', remind: e.remind === undefined ? 1 : +e.remind,
+    ...eventOwners(e),
   };
 }
 
@@ -1352,6 +1353,82 @@ route('GET', '/api/reporter-stats', null, ({ query }) => {
 });
 
 // ── people (가족 인물 사전, 신규)
+// ───────────────────────── 가족 관계 — 가계도(아버지·어머니·배우자)로 가족을 나누고, 일정의 주인을 찾는다
+// 같은 요청 안에서 여러 번 부르므로 1초 동안 기억해 둔다
+let kinMemo = { t: 0, v: null };
+function kinCtx() {
+  if (kinMemo.v && Date.now() - kinMemo.t < 1000) return kinMemo.v;
+  const P = all('SELECT name, relation, family_group, father, mother, spouse FROM people');
+  const by = new Map(P.map((p) => [p.name, p]));
+  const accounts = new Set(all('SELECT display_name n FROM users').map((r) => r.n).filter(Boolean));
+  const spouseOf = (n) => (by.get(n) || {}).spouse || (P.find((x) => x.spouse === n) || {}).name || '';
+  const kids = (n) => P.filter((x) => x.father === n || x.mother === n).map((x) => x.name);
+  const parents = (n) => { const p = by.get(n); return p ? [p.father, p.mother].filter(Boolean) : []; };
+  // 우리 집 — 가족 계정이 가장 많이 들어 있는 부부와 그 자녀
+  const couples = new Set();
+  for (const p of P) { if (p.spouse) couples.add([p.name, p.spouse].sort().join('|')); if (p.father && p.mother) couples.add([p.father, p.mother].sort().join('|')); }
+  let home = null;
+  for (const c of couples) {
+    const [a, b] = c.split('|'); const set = new Set([a, b, ...kids(a), ...kids(b)]);
+    const score = [...set].filter((n) => accounts.has(n)).length * 100 + set.size;
+    if (!home || score > home.score) home = { a, b, set, score };
+  }
+  const group = new Map(); // 이름 → 우리 집 · 친가 · 외가 · 친척
+  if (home) {
+    for (const n of home.set) group.set(n, '우리 집');
+    // 아이들의 아버지 쪽이 친가, 어머니 쪽이 외가 (아이가 없으면 부부 중 남편 자리를 모름 → 두 쪽 모두 ‘친척’)
+    const hk = [...home.set].filter((n) => n !== home.a && n !== home.b);
+    const dad = hk.map((k) => (by.get(k) || {}).father).find(Boolean) || '', mom = hk.map((k) => (by.get(k) || {}).mother).find(Boolean) || '';
+    const clan = (x) => {
+      const anc = new Set(); const up = (n, d) => { for (const q of parents(n)) if (!anc.has(q) && d < 6) { anc.add(q); up(q, d + 1); } }; up(x, 0);
+      const out = new Set(); const down = (n, d) => { if (out.has(n) || d > 8) return; out.add(n); const sp = spouseOf(n); if (sp) out.add(sp); for (const k of [...kids(n), ...(sp ? kids(sp) : [])]) down(k, d + 1); };
+      for (const a of anc) down(a, 0); return out;
+    };
+    for (const [who, label] of [[dad, '친가'], [mom, '외가'], [dad ? '' : home.a, '친척'], [mom ? '' : home.b, '친척']]) if (who) for (const n of clan(who)) if (!group.has(n)) group.set(n, label);
+    // 그 밖에 가계도로 이어진 사람(사촌의 배우자 등)
+    let grew = true;
+    while (grew) { grew = false; for (const p of P) { if (group.has(p.name)) continue; const near = [p.father, p.mother, p.spouse, ...kids(p.name)].find((n) => n && group.has(n)); if (near) { group.set(p.name, group.get(near) === '우리 집' ? '친척' : group.get(near)); grew = true; } } }
+  }
+  const v = { P, by, accounts, group }; kinMemo = { t: Date.now(), v }; return v;
+}
+const MANUAL_DEFAULT = new Set(['', '우리 가족']);
+// 가족 앨범에 보일 묶음 — 직접 적은 묶음(해바라기마을 등)이 먼저, 그다음 가계도, 친구, 기본 ‘우리 가족’
+function personGroup(name, ctx = kinCtx()) {
+  const p = ctx.by.get(name) || {}; const g = groupName(p.family_group);
+  if (!MANUAL_DEFAULT.has(g)) return g;
+  if (ctx.group.has(name)) return ctx.group.get(name);
+  if (/친구|지인|동료|이웃|선배|후배|선생님/.test(p.relation || '')) return '친구·지인';
+  return '우리 가족';
+}
+// 이름 찾기 — 인물 이름 그대로, ‘님’ 떼기, 호칭(엄마→김은지, 인물마다 적은 관계), 줄인 이름(서윤→김서윤)
+function resolvePerson(tok, ctx = kinCtx()) {
+  let t = String(tok || '').trim().replace(/^#/, '').replace(/님$/, '').trim(); if (!t) return '';
+  if (ctx.by.has(t) || ctx.accounts.has(t)) return t;
+  const rel = ctx.P.filter((p) => p.relation === t); if (rel.length === 1) return rel[0].name;
+  const short = [...new Set([...ctx.by.keys(), ...ctx.accounts])].filter((n) => n.length > t.length && t.length >= 2 && n.endsWith(t)); if (short.length === 1) return short[0];
+  return '';
+}
+// 일정의 주인 — 생일은 한 사람(친구 생일이면 누구의 친구인지도), 기념일·일정은 괄호·등장 인물에 적힌 사람들
+function eventOwners(e) {
+  const ctx = kinCtx(); const title = String(e.title || ''); const out = new Set(); let owner = '', friend_of = '';
+  const paren = [...title.matchAll(/\(([^)]*)\)/g)].flatMap((m) => m[1].split(/[,.·&/+]|\s+|와|과|랑/)).map((x) => x.trim()).filter(Boolean);
+  if (e.kind === 'birthday') {
+    const fr = parseFriendTitle(title);
+    if (fr) { owner = resolvePerson(fr.name, ctx) || fr.name; friend_of = resolvePerson(fr.of, ctx) || fr.of; }
+    else {
+      const head = (/^(.*?)\s*(?:의\s*)?(?:생일|생신)/.exec(title.replace(/\([^)]*\)/g, ' ')) || [])[1] || '';
+      const h = head.replace(/님$/, '').trim();
+      owner = resolvePerson(h, ctx) || resolvePerson(h.split(/\s+/).pop(), ctx) || paren.map((t) => resolvePerson(t, ctx)).find(Boolean) || tags(e.hashtags).map((t) => resolvePerson(t, ctx)).find(Boolean) || '';
+    }
+    if (owner) out.add(owner);
+  } else {
+    for (const t of [...paren, ...tags(e.hashtags)]) { const n = resolvePerson(t, ctx); if (n) out.add(n); }
+    const names = [...ctx.by.keys()].sort((a, b) => b.length - a.length); let rest = title.replace(/\([^)]*\)/g, ' ');
+    for (const n of names) if (n.length >= 2 && rest.includes(n)) { out.add(n); rest = rest.split(n).join(' '); }
+  }
+  return { owners: [...out], owner: owner || [...out][0] || '', friend_of };
+}
+
 function peopleIndex() {
   const map = new Map();
   const add = (name) => { if (!map.has(name)) map.set(name, { name, event_count: 0, article_count: 0 }); return map.get(name); };
@@ -1366,7 +1443,10 @@ function peopleIndex() {
     if (last && (/(동|산|구|시|친구)$/.test(last) || groupWords.has(last)) && t.length > 1) groups.add(last);
   }
   const accounts = new Set(all('SELECT display_name n FROM users').map((r) => r.n));
-  return [...map.values()].map(p => ({ ...p, is_group: !p.has_profile && groups.has(p.name), is_account: accounts.has(p.name) }))
+  const ctx = kinCtx(); const today = kstToday(), y = +today.slice(0, 4); const nextBd = new Map();
+  for (const o of [...occurrencesForYear(y), ...occurrencesForYear(y + 1)].filter((o) => o.kind === 'birthday' && o.date >= today).sort((a, b) => a.date.localeCompare(b.date)))
+    if (o.owner && !nextBd.has(o.owner)) nextBd.set(o.owner, { date: o.date, age: o.age || null, calendar: o.calendar });
+  return [...map.values()].map(p => ({ ...p, is_group: !p.has_profile && groups.has(p.name), is_account: accounts.has(p.name), group: personGroup(p.name, ctx), next_birthday: nextBd.get(p.name) || null }))
     .sort((a, b) => (a.is_group - b.is_group) || a.name.localeCompare(b.name, 'ko'));
 }
 route('GET', '/api/people', null, () => ({ people: peopleIndex() }));
@@ -1376,19 +1456,23 @@ route('GET', '/api/people/:name', null, ({ params, user }) => {
   const profile = get('SELECT * FROM people WHERE name=?', name) || { name };
   if (!isRole(user, 'subscriber')) delete profile.facetime; // 페이스타임 연락처는 로그인한 가족에게만
   if (profile.family_group) profile.family_group = groupName(profile.family_group);
-  const evs = all('SELECT * FROM events WHERE deleted=0 AND (hashtags LIKE ? OR title LIKE ?)', like, `%${name}%`)
-    .filter(e => tags(e.hashtags).includes(name) || e.title.includes(name)).map(e => publicEvent(e));
-  const y = new Date().getFullYear();
-  const occ = [...occurrencesForYear(y), ...occurrencesForYear(y + 1)].filter(o => evs.some(e => e.id === o.id));
+  // 이 사람이 주인인 일정(생일·기념일·등장) + 이 사람의 친구 생일은 따로
+  const evAll = all('SELECT * FROM events WHERE deleted=0').map((e) => publicEvent(e));
+  const evs = evAll.filter((e) => e.owners.includes(name) || (tags(e.hashtags).includes(name) && e.friend_of !== name && e.kind !== 'birthday'));
+  const friendEvs = evAll.filter((e) => e.kind === 'birthday' && e.friend_of === name && !evs.includes(e));
+  const y = new Date().getFullYear(); const occAll = [...occurrencesForYear(y), ...occurrencesForYear(y + 1)];
+  const occ = occAll.filter(o => evs.some(e => e.id === o.id));
+  const friendOcc = occAll.filter((o) => friendEvs.some((e) => e.id === o.id) && o.date >= kstToday());
   const arts = all("SELECT * FROM articles WHERE deleted=0 AND status='published' AND (hashtags LIKE ? OR title LIKE ? OR blocks LIKE ?) ORDER BY COALESCE(published_at,updated) DESC", like, `%${name}%`, `%${name}%`)
     .map(a => articleOut(a, user, false));
   const related = new Map();
   for (const e of evs) for (const t of tags(e.hashtags)) if (t !== name) related.set(t, (related.get(t) || 0) + 1);
   const exists = !!profile.updated || evs.length > 0 || arts.length > 0 || all('SELECT name FROM people WHERE father=? OR mother=? OR spouse=?', name, name, name).length > 0;
-  return { exists, person: profile, events: evs, occurrences: occ, articles: arts, related: [...related.entries()].sort((a, b) => b[1] - a[1]).map(([n]) => n) };
+  for (const e of evs) for (const n of e.owners) if (n !== name) related.set(n, (related.get(n) || 0) + 1);
+  return { exists, person: profile, group: personGroup(name), events: evs, occurrences: occ, friend_events: friendEvs, friend_occurrences: friendOcc, articles: arts, related: [...related.entries()].sort((a, b) => b[1] - a[1]).map(([n]) => n) };
 });
 route('PUT', '/api/people/:name', 'staff', ({ params, body }) => {
-  const name = decodeURIComponent(params.name).slice(0, 30);
+  const name = decodeURIComponent(params.name).slice(0, 30); kinMemo.t = 0;
   const cur = get('SELECT * FROM people WHERE name=?', name) || {};
   const pick = (k, max) => (k in body ? str(body[k], max) : (cur[k] || ''));
   const rel = (k) => { const v = pick(k, 30); return v === name ? '' : v; };
@@ -1414,7 +1498,7 @@ route('PUT', '/api/people/:name', 'staff', ({ params, body }) => {
 });
 // 인물 지우기 — 프로필을 지우고, 일정의 등장 인물에서 빼고, 가계도 연결을 푼다. 원하면 그 사람 생일 일정도 휴지통으로
 route('DELETE', '/api/people/:name', 'staff', ({ params, query }) => {
-  const name = decodeURIComponent(params.name).slice(0, 30);
+  const name = decodeURIComponent(params.name).slice(0, 30); kinMemo.t = 0;
   if (get('SELECT 1 FROM users WHERE display_name=?', name)) fail(400, '가족 계정이 있는 사람은 지울 수 없어요. 계정 이름을 바꾸거나 계정을 먼저 정리해 주세요.');
   let trashed = 0, untagged = 0;
   for (const e of all('SELECT id,title,kind,hashtags FROM events WHERE deleted=0')) {
@@ -1904,8 +1988,9 @@ for (const u of all('SELECT id, username, display_name FROM users')) giveBasePoi
 const BDAY_START = '2026-11-06'; // 이 날부터 돌아오는 생일에만 (지난 생일은 소급하지 않아요)
 function userBirthday(u) {
   const name = String(u.display_name || '').replace(/\s+/g, ''); if (name.length < 2) return null;
-  const hits = all("SELECT * FROM events WHERE deleted=0 AND kind='birthday'").filter((x) => String(x.title).replace(/\s+/g, '').includes(name));
-  const e = hits.find((x) => !/친구/.test(x.title)) || hits[0];
+  const bds = all("SELECT * FROM events WHERE deleted=0 AND kind='birthday'");
+  const e = bds.find((x) => eventOwners(x).owner.replace(/\s+/g, '') === name)
+    || bds.filter((x) => String(x.title).replace(/\s+/g, '').includes(name)).find((x) => !parseFriendTitle(x.title));
   if (!e) return null;
   const today = kstToday(), y = +today.slice(0, 4);
   const dates = [y - 1, y, y + 1].flatMap((yy) => occurrencesForYear(yy).filter((o) => o.id === e.id).map((o) => o.date));

@@ -33,14 +33,18 @@
     const { groupOf, nextBd } = await buildGroups(people);
     const persons = people.filter((p) => !p.is_group);
     const groups = {};
-    for (const p of persons) { const g = p.family_group || groupOf.get(p.name)?.g || '우리 가족'; (groups[g] = groups[g] || []).push(p); }
-    const order = Object.keys(groups).sort((a, b) => (a === '우리 가족' ? -1 : b === '우리 가족' ? 1 : groups[b].length - groups[a].length));
+    // 묶음은 서버가 가계도로 정해 줘요(우리 집·친가·외가·친척), 직접 적은 묶음과 친구·지인은 그대로
+    for (const p of persons) { const g = (p.group === '우리 가족' && groupOf.get(p.name)?.g) || p.group || '우리 가족'; (groups[g] = groups[g] || []).push(p); }
+    const RANK = ['우리 집', '친가', '외가', '친척', '우리 가족', '친구·지인'];
+    const rk = (g) => { const i = RANK.indexOf(g); return i < 0 ? RANK.length : i; };
+    const order = Object.keys(groups).sort((a, b) => rk(a) - rk(b) || groups[b].length - groups[a].length);
+    for (const g of order) groups[g].sort((a, b) => (a.is_account ? 0 : 1) - (b.is_account ? 0 : 1) || a.name.localeCompare(b.name, 'ko'));
     const today = YT.today();
     view.innerHTML = YT.subTabs('album') + YT.pageHead('', '가족 앨범', '가족 한 사람 한 사람의 이야기 — 이름을 누르면 생일·기념일·관련 기사를 한곳에서 볼 수 있어요.', YT.can('staff') ? '<button class="btn primary" id="addPerson">+ 인물 추가</button>' : '')
       + `<input type="search" class="input" id="pSearch" placeholder="이름 검색" aria-label="이름 검색" style="max-width:320px">
       <div class="chips mt">${order.map((g) => `<a class="chip" href="#pg-${encodeURIComponent(g)}">${esc(g)} <small>${groups[g].length}</small></a>`).join('')}</div>
-      ${order.map((g) => `<section class="p-group" id="pg-${encodeURIComponent(g)}"><div class="side-head"><h2>${esc(g)}</h2>${g !== '우리 가족' ? `<a href="#/people/${encodeURIComponent(g)}">모아 보기 →</a>` : ''}</div>
-        <div class="p-grid">${groups[g].map((p) => { const b = nextBd.get(p.name); return `<a class="p-card" data-name="${esc(p.name)}" href="#/people/${encodeURIComponent(p.name)}">${avatar(p)}
+      ${order.map((g) => `<section class="p-group" id="pg-${encodeURIComponent(g)}"><div class="side-head"><h2>${esc(g)}</h2>${people.some((x) => x.is_group && x.name === g) ? `<a href="#/people/${encodeURIComponent(g)}">모아 보기 →</a>` : ''}</div>
+        <div class="p-grid">${groups[g].map((p) => { const b = p.next_birthday || nextBd.get(p.name); return `<a class="p-card" data-name="${esc(p.name)}" href="#/people/${encodeURIComponent(p.name)}">${avatar(p)}
           <div><b>${esc(p.name)}</b>${p.relation ? `<span class="p-rel">${esc(p.relation)}</span>` : ''}
           <div class="muted small">${b ? `생일 ${b.date.slice(5).replace('-', '/')} · ${b.date === today ? '오늘!' : 'D-' + YT.dayDiff(today, b.date)}` : ''}${p.article_count ? ` · 기사 ${p.article_count}` : ''}</div></div></a>`; }).join('')}</div></section>`).join('')}
       <p class="muted small mt">기사에 <b>등장 인물</b>을 넣거나 생일을 등록하면 가족 앨범에 자동으로 추가돼요. 지역·모임 이름(예: 해바라기마을)은 가족 그룹으로 묶여요. 위의 ‘성장 기록’·‘가족 연표’ 탭에서 자라는 모습과 큰일도 볼 수 있어요.</p>`;
@@ -82,10 +86,11 @@
     const upcoming = d.occurrences.filter((o) => o.date >= today).slice(0, 6);
     const isGroup = me.is_group;
     const members = isGroup ? d.related : [];
-    const myBirthday = !isGroup && d.events.find((e) => e.kind === 'birthday' && e.title.includes(name));
+    const myBirthday = !isGroup && (d.events.find((e) => e.kind === 'birthday' && e.owner === name) || d.events.find((e) => e.kind === 'birthday' && !e.friend_of && e.title.includes(name)));
+    const grp = d.group || p.family_group || '';
     view.innerHTML = `
       <div class="person-head">${avatar(p, 'xl')}
-        <div class="grow"><div class="sec-kicker">${isGroup ? '가족 그룹' : '가족 앨범'}${p.family_group ? ' · ' + esc(p.family_group) : ''}</div>
+        <div class="grow"><div class="sec-kicker">${isGroup ? '가족 그룹' : '가족 앨범'}${grp ? ' · ' + esc(grp) : ''}</div>
         <h1 class="page-title">${esc(name)} ${p.relation ? `<span class="p-rel big">${esc(p.relation)}</span>` : ''}</h1>
         ${myBirthday ? `<p class="muted">생일 · ${myBirthday.calendar === 'lunar' ? '음력' : '양력'} ${myBirthday.birth_month}월 ${myBirthday.birth_day}일${myBirthday.birth_year ? ` · ${myBirthday.birth_year}년생` : ''}${YT.can('staff') ? ' <button class="btn tiny" id="editBd">생일 수정</button>' : ''}</p>` : ''}
         ${p.bio ? `<p class="p-bio">${YT.nl2br(p.bio)}</p>` : (YT.can('staff') && !isGroup ? '<p class="muted small">아직 소개가 없어요. ‘프로필 편집’으로 한 줄 소개를 남겨보세요.</p>' : '')}
@@ -97,7 +102,8 @@
       <div class="person-grid">
         <section><div class="side-head"><h2>${isGroup ? '그룹 일정' : '생일·기념일'}</h2><a href="#/calendar">캘린더 ↗</a></div>
           <ul class="ev-list">${upcoming.length ? upcoming.map((o) => YT.eventItem(o).replace('<li class="ev-item">', `<li class="ev-item"><span class="dday">${o.date === today ? '오늘' : 'D-' + YT.dayDiff(today, o.date)}</span>`)).join('') : '<li class="muted">다가오는 일정이 없어요.</li>'}</ul>
-          ${YT.can('staff') && !isGroup && !myBirthday ? `<button class="btn small" id="addBd">${esc(name)} 생일 등록</button>` : ''}</section>
+          ${YT.can('staff') && !isGroup && !myBirthday ? `<button class="btn small" id="addBd">${esc(name)} 생일 등록</button>` : ''}
+          ${(d.friend_occurrences || []).length ? `<div class="side-head mt"><h2>${esc(name)}의 친구 생일</h2></div><ul class="ev-list">${d.friend_occurrences.slice(0, 8).map((o) => YT.eventItem(o).replace('<li class="ev-item">', `<li class="ev-item"><span class="dday">${o.date === today ? '오늘' : 'D-' + YT.dayDiff(today, o.date)}</span>`)).join('')}</ul>` : ''}</section>
         <section><div class="side-head"><h2>${isGroup ? '구성원' : '함께 등장하는 가족'}</h2></div>
           <div class="chips">${(isGroup ? members : d.related).filter((n) => !people.find((x) => x.name === n)?.is_group).map((n) => `<a class="chip" href="#/people/${encodeURIComponent(n)}">${esc(n)}</a>`).join('') || '<span class="muted">아직 없어요.</span>'}</div>
           ${!isGroup ? `<div class="mt">${d.related.filter((n) => people.find((x) => x.name === n)?.is_group).map((n) => `<a class="tag" href="#/people/${encodeURIComponent(n)}">#${esc(n)}</a>`).join(' ')}</div>` : ''}</section>
@@ -131,7 +137,7 @@
     if (ed) ed.onclick = () => {
       const m = YT.modal(`<h2 class="modal-title">${esc(name)} 프로필</h2><form class="form" id="pForm">
         <div class="form-row"><label>관계·호칭<input class="input" name="relation" maxlength="30" value="${esc(p.relation || '')}" placeholder="엄마 / 둘째이모 / 서아 친구"></label>
-        <label>가족 그룹<input class="input" name="family_group" maxlength="30" value="${esc(p.family_group || '')}" placeholder="우리 가족 / 해바라기마을 / 푸른숲마을"></label>
+        <label>가족 그룹 <small class="muted">— 비워 두면 가계도로 자동(우리 집·친가·외가)</small><input class="input" name="family_group" maxlength="30" value="${esc(['우리 가족', '우리가족'].includes(p.family_group) ? '' : (p.family_group || ''))}" placeholder="자동 · 친구·지인 · 해바라기마을"></label>
         <input type="hidden" name="emoji" value="${esc(p.emoji || '')}"></div>
         <fieldset class="rel-set"><legend>가계도 <small class="muted">— 이름을 적으면 가계도에 이어져요</small></legend>
           <div class="form-row"><label>아버지<input class="input" name="father" list="relNames" maxlength="30" value="${esc(p.father || '')}"></label>
@@ -176,7 +182,7 @@
     // ── 배치: 부부를 한 덩어리(unit)로, 집안(뿌리 부부)마다 아래로 가지를 뻗는 나무 모양으로
     //    · 자녀 덩어리들의 폭을 먼저 재고, 부모는 자녀들 한가운데 위에
     //    · 두 집안을 잇는 부부(예: 아빠-엄마)는 한쪽 집안의 맨 끝에 두고, 다른 집안을 바로 옆에 붙인다
-    const W = 128, H = 52, GX = 16, GY = 70, CG = 8, TREE_GAP = 40; const pos = new Map();
+    const W = 128, H = 60, GX = 16, GY = 70, CG = 8, TREE_GAP = 40; const pos = new Map();
     const byName = new Map(linked.map((p) => [p.name, p]));
     const order = [...linked].sort((a, b) => gen.get(a.name) - gen.get(b.name) || a.name.localeCompare(b.name, 'ko'));
     const units = []; const unitOf = new Map();
@@ -250,7 +256,7 @@
     }
     const nodes = [...pos.values()].map(({ x, y, p }) => `<a href="#/people/${encodeURIComponent(p.name)}" class="ft-node" style="left:${x}px;top:${y}px;width:${W}px;height:${H}px">
       ${p.photo ? `<img src="${YT.thumbUrl(p.photo)}" alt="" loading="lazy">` : `<span class="ft-av" style="--h:${[...p.name].reduce((s, c) => s + c.charCodeAt(0), 0) % 360}">${esc(p.name.slice(-2))}</span>`}
-      <span class="ft-t"><b>${esc(p.name)}</b>${p.relation ? `<small>${esc(p.relation)}</small>` : ''}</span></a>`).join('');
+      <span class="ft-t"><b>${esc(p.name)}</b>${p.relation ? `<small>${esc(p.relation)}</small>` : ''}${p.next_birthday ? `<small class="ft-bd">🎂 ${+p.next_birthday.date.slice(5, 7)}/${+p.next_birthday.date.slice(8, 10)}</small>` : ''}</span></a>`).join('');
     const CW = Math.max(0, maxX - GX);
     wrap.innerHTML = `<div class="ft-tools"><span class="muted small">${pos.size}명 · ${rootOrder.length}집안</span><div class="seg-btns"><button type="button" class="chip" data-z="-1" aria-label="작게">－</button><button type="button" class="chip" data-z="fit">화면에 맞추기</button><button type="button" class="chip" data-z="1" aria-label="크게">＋</button></div></div>
       <div class="ft-scroll" id="ftScroll"><div class="ft-size" id="ftSize"><div class="ft-canvas" id="ftCanvas" style="width:${CW}px;height:${height}px"><svg width="${CW}" height="${height}" aria-hidden="true">${lines}</svg>${nodes}</div></div></div>

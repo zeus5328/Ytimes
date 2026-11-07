@@ -2242,3 +2242,8 @@ svg.vc { width: 100%; height: auto; display: block; }
 .idp-acts { display: grid; gap: .25rem; } .idp-acts .btn { justify-self: start; margin-top: .375rem; }
 .idp-sheet { margin: .75rem 0; } .idp-sheet-cv { width: 100%; height: auto; border: 1px solid var(--line); background: #fff; }
 @media (max-width: 760px) { .idp-grid { grid-template-columns: minmax(0, 1fr); } }
+
+/* 일정 주인 — 생일·기념일 아래 인물 링크 */
+.ev-who { display: flex; flex-wrap: wrap; align-items: center; gap: .25rem .375rem; margin-top: .25rem; }
+.ev-who .tag { font-size: .75rem; }
+.ft-t .ft-bd { color: var(--seal); }
