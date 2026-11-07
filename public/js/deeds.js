@@ -19,7 +19,7 @@
           : x.status === 'approved' ? `<b class="dd-plus">+${P(x.points)}P</b>` : x.status === 'pending' ? `<span class="muted small">${x.points ? `+${P(x.points)}P 예정` : '포인트는 확인할 때'}</span><button class="linklike small" data-edit="${x.id}">고치기</button><button class="linklike small" data-del="${x.id}">취소</button>` : ''}</div></div>`;
     box.innerHTML = `<section class="g-hero dd-hero"><div class="g-hero-main"><span class="g-eyebrow">GOOD DEEDS</span><h2 class="g-title">오늘 <b>착한 일</b> 했나요?</h2>
         <p class="g-sub">한 일을 올리면 부모님이 확인하고 포인트를 줘요. 하루 ${d.daily}개까지 · 오늘 ${d.today}개 올렸어요</p></div>
-        <div class="g-wallet"><span>착한 일로 받은 포인트</span><b>${P(d.earned)}<small>P</small></b><a href="#/points">내 포인트 · 쿠폰 →</a></div></section>
+        <div class="g-wallet"><span>착한 일로 받은 포인트</span><b>${P(d.earned)}<small>P</small></b><a href="#/points">적립금 은행 →</a></div></section>
       ${d.approver && d.pending.length ? `<section class="g-panel dd-review"><div class="g-ph"><h3>확인해 줄 착한 일 <span class="dd-count">${d.pending.length}</span></h3><span class="muted small">포인트를 바꿔서 줄 수도 있어요</span></div>
         <div class="dd-list">${d.pending.map((x) => card(x, true)).join('')}</div></section>` : ''}
       <section class="g-panel"><div class="g-ph"><h3>어떤 착한 일을 했나요?</h3><span class="muted small">눌러서 올려요</span></div>
