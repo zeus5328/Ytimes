@@ -1893,9 +1893,9 @@ CREATE TABLE IF NOT EXISTS coupon_issues (id TEXT PRIMARY KEY, coupon_id TEXT NO
 if (getSetting('coupons_seeded', '') !== '1') { // 처음 한 번만 예시 쿠폰 몇 장 (관리자가 고치거나 지울 수 있음)
   setSetting('coupons_seeded', '1');
   if (!get('SELECT COUNT(*) c FROM coupons').c)
-  [['용돈 1,000원', '부모님께 보여 주면 용돈 1,000원으로 바꿔 줘요.', 3000, '💰'], ['게임 30분 더', '하루 게임(영상) 시간을 30분 늘려요.', 2000, '🎮'],
-   ['설거지 면제권', '오늘 설거지 당번을 한 번 쉬어요.', 3000, '🍽️'], ['저녁 메뉴 고르기', '이번 주 저녁 메뉴 하나를 내가 정해요.', 4000, '🍕'],
-   ['늦잠 자기', '주말 아침 늦잠을 허락받아요.', 5000, '😴']].forEach(([t, d, p, ic], i) =>
+  [['용돈 1,000원', '부모님께 보여 주면 용돈 1,000원으로 바꿔 줘요.', 3000, '🪙'], ['게임 30분 더', '하루 게임(영상) 시간을 30분 늘려요.', 2000, '🎮'],
+   ['설거지 면제권', '오늘 설거지 당번을 한 번 쉬어요.', 3000, '🧽'], ['저녁 메뉴 고르기', '이번 주 저녁 메뉴 하나를 내가 정해요.', 4000, '🍝'],
+   ['늦잠 자기', '주말 아침 늦잠을 허락받아요.', 5000, '🌙']].forEach(([t, d, p, ic], i) =>
     run('INSERT INTO coupons(id,title,description,price,stock,per_user,icon,active,sort,created) VALUES(?,?,?,?,?,?,?,?,?,?)', uid(), t, d, p, -1, 0, ic, 1, i, now()));
 }
 const CARD_DAILY = 5;

@@ -4,6 +4,7 @@
   const { esc } = YT;
   const P = (n) => Number(n || 0).toLocaleString('ko-KR');
   const dt = (s) => (s ? String(s).slice(0, 10).replace(/-/g, '.') : '');
+  const ICONS = ['🪙', '🎮', '📱', '🧽', '🍝', '🍽️', '🌙', '🎈', '🚗', '🎬', '🍦', '📚', '🎁', '⭐', '🎟️'];
   const STATUS = { issued: ['사용 전', 'on'], used: ['사용 완료', 'done'], cancelled: ['취소·환불', 'off'] };
 
   const ticket = (c, opts = {}) => `<div class="cp-ticket ${opts.cls || ''}">
@@ -93,12 +94,16 @@
       c = c || { title: '', description: '', price: 1000, stock: -1, per_user: 0, icon: '🎟️', active: 1 };
       const m = YT.modal(`<h2 class="modal-title">${c.id ? '쿠폰 고치기' : '새 쿠폰'}</h2>
         <form class="form" id="cpForm"><div class="form-row"><label style="max-width:5rem">그림<input class="input" name="icon" maxlength="8" value="${esc(c.icon || '')}"></label><label class="grow">쿠폰 이름<input class="input" name="title" required maxlength="40" value="${esc(c.title)}"></label></div>
+          <div class="cp-pick" role="group" aria-label="그림 고르기">${ICONS.map((i) => `<button type="button" data-ic="${i}" aria-pressed="${c.icon === i}">${i}</button>`).join('')}</div>
           <label>설명<input class="input" name="description" maxlength="200" value="${esc(c.description || '')}" placeholder="어떻게 쓰는 쿠폰인지"></label>
           <div class="form-row"><label>가격 (포인트)<input class="input" name="price" inputmode="numeric" required value="${c.price}"></label>
             <label>전체 수량<input class="input" name="stock" inputmode="numeric" value="${c.stock >= 0 ? c.stock : ''}" placeholder="비우면 무제한"></label>
             <label>1인 최대<input class="input" name="per_user" inputmode="numeric" value="${c.per_user || ''}" placeholder="비우면 무제한"></label></div>
           <label class="check"><input type="checkbox" name="active" ${c.active ? 'checked' : ''}> 판매하기</label>
           <div class="row gap end">${c.id ? '<button type="button" class="btn danger ghost" id="cpDel">지우기</button>' : ''}<button class="btn primary">저장</button></div></form>`);
+      const icIn = m.el.querySelector('[name=icon]');
+      m.el.querySelectorAll('.cp-pick button').forEach((b) => { b.onclick = () => { icIn.value = b.dataset.ic; m.el.querySelectorAll('.cp-pick button').forEach((x) => x.setAttribute('aria-pressed', String(x === b))); }; });
+      icIn.oninput = () => m.el.querySelectorAll('.cp-pick button').forEach((x) => x.setAttribute('aria-pressed', String(x.dataset.ic === icIn.value.trim())));
       m.el.querySelector('#cpForm').onsubmit = async (e) => {
         e.preventDefault(); const f = Object.fromEntries(new FormData(e.target)); f.active = !!e.target.active.checked;
         try { if (c.id) await YT.put('/api/coupons/' + c.id, f); else await YT.post('/api/coupons', f); m.close(); YT.toast('쿠폰을 저장했어요.'); managePage(box); } catch (err) { YT.err(err); }
