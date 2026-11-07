@@ -283,6 +283,7 @@ const usersWith = (minRole, except) => all('SELECT id, role FROM users').filter(
 const pointsChecked = new Map(); // user.id → 마지막으로 확인한 날 (한국 시간)
 function birthdayNotices(user) {
   try { autoCards(); } catch (e) { console.error('자동 축하 카드:', e.message); }
+  try { fridgeNotices(); } catch (e) { console.error('냉장고 알림:', e.message); }
   // 생일·매달 포인트는 사람마다 하루 한 번만 확인 (알림을 열 때마다 계산하지 않게)
   if (user && pointsChecked.get(user.id) !== kstToday()) {
     try { birthdayPoints(user); } catch (e) { console.error('생일 포인트:', e.message); }
@@ -1276,7 +1277,12 @@ const ITEM_KINDS = {
   prep: { s: { title: 80, place: 80, note: 600 }, a: { members: [30, 30] }, p: true },
   address: { s: { name: 40, zip: 10, addr1: 120, addr2: 120, phone: 30, note: 60 }, b: ['send'], role: 'editor' },
   vacation: { s: { student: 30, title: 60, season: 20, start: 10, end: 10, motto: 120 }, v: true }, // 방학계획표
+  recipe: { s: { title: 60, category: 16, servings: 12, time: 12, level: 8, chef: 30, intro: 600, tip: 800, photo: 60 }, r: true }, // 부엌 › 레시피
+  fridge: { s: { name: 40, cat: 16, place: 6, qty: 20, bought: 10, expires: 10, memo: 120 }, f: true }, // 부엌 › 냉장고를 부탁해 (가족 누구나 고치고 비움)
 };
+const RECIPE_CATS = ['밥·죽', '면·국수', '국·찌개', '반찬', '고기', '해산물', '간식·디저트', '빵·브런치', '음료', '기타'];
+const FRIDGE_CATS = ['채소·과일', '고기·생선', '유제품·달걀', '반찬·국', '소스·양념', '음료', '냉동식품', '간식', '기타'];
+const FRIDGE_PLACES = ['냉장', '냉동', '실온'];
 const kindOk = (kind, user) => !ITEM_KINDS[kind]?.role || isRole(user, ITEM_KINDS[kind].role);
 function itemData(kind, body) {
   const spec = ITEM_KINDS[kind] || fail(400, '알 수 없는 기록 종류예요.'); const src = body.data && typeof body.data === 'object' ? body.data : {}; const d = {};
@@ -1296,9 +1302,36 @@ function itemData(kind, body) {
   }
   if (kind === 'address' && (!d.name || !d.addr1)) fail(400, '받는 분 이름과 주소를 적어주세요.');
   if (spec.v) Object.assign(d, vacationData(src, d));
+  if (spec.r) { // 레시피 — 재료(이름·양)와 순서(글·사진)
+    if (!d.title) fail(400, '요리 이름을 적어 주세요.');
+    if (!RECIPE_CATS.includes(d.category)) d.category = '기타';
+    if (!['쉬움', '보통', '어려움'].includes(d.level)) d.level = '';
+    d.ingredients = (Array.isArray(src.ingredients) ? src.ingredients : []).slice(0, 50).map((x) => ({ name: str(x && x.name, 40), amt: str(x && x.amt, 30) })).filter((x) => x.name);
+    d.steps = (Array.isArray(src.steps) ? src.steps : []).slice(0, 40).map((x) => ({ text: str(x && x.text, 600), photo: x && x.photo ? str(x.photo, 60) : '' })).filter((x) => x.text || x.photo);
+    if (!d.ingredients.length && !d.steps.length) fail(400, '재료나 만드는 순서를 하나 이상 적어 주세요.');
+  }
+  if (spec.f) { // 냉장고 음식
+    if (!d.name) fail(400, '음식 이름을 적어 주세요.');
+    if (!FRIDGE_CATS.includes(d.cat)) d.cat = '기타';
+    if (!FRIDGE_PLACES.includes(d.place)) d.place = '냉장';
+    for (const k of ['bought', 'expires']) if (d[k] && !/^\d{4}-\d{2}-\d{2}$/.test(d[k])) d[k] = '';
+  }
   return d;
 }
-const itemOut = (r, user) => { let data = {}; try { data = JSON.parse(r.data); } catch {} return { id: r.id, kind: r.kind, date: r.date, data, author_name: r.author_name, created: r.created, updated: r.updated, can_edit: !!user && (r.author_id === user.id || isRole(user, 'staff')) }; };
+const itemOut = (r, user) => { let data = {}; try { data = JSON.parse(r.data); } catch {} return { id: r.id, kind: r.kind, date: r.date, data, author_name: r.author_name, created: r.created, updated: r.updated, can_edit: !!user && (r.author_id === user.id || isRole(user, 'staff') || r.kind === 'fridge') }; };
+// 냉장고 — 유통기한이 내일까지인 음식을 하루 한 번 알려 준다 (넣은 사람 + 시니어기자 이상)
+let fridgeDay = '';
+function fridgeNotices() {
+  const today = kstToday(); if (fridgeDay === today) return; fridgeDay = today;
+  const soon = new Date(Date.parse(today) + 864e5).toISOString().slice(0, 10);
+  const rows = all("SELECT * FROM items WHERE deleted=0 AND kind='fridge'").map((r) => ({ r, d: (() => { try { return JSON.parse(r.data); } catch { return {}; } })() })).filter((x) => x.d.expires && x.d.expires <= soon);
+  if (!rows.length) return;
+  const parents = usersWith('senior');
+  for (const { r, d } of rows) {
+    const when = d.expires < today ? '유통기한이 지났어요' : d.expires === today ? '오늘까지예요' : '내일까지예요';
+    notify([...parents, r.author_id], { kind: 'fridge', title: `🧊 ${d.name} — ${when}`, body: `${d.place || '냉장'}${d.qty ? ' · ' + d.qty : ''} · 냉장고를 부탁해에서 확인해 주세요.`, link: '#/fridge', ukey: `fridge:${r.id}:${d.expires}:${d.expires < today ? 'over' : d.expires === today ? 'today' : 'soon'}` });
+  }
+}
 route('GET', '/api/items', 'subscriber', ({ query, user }) => {
   const kinds = String(query.kind || '').split(',').filter((k) => ITEM_KINDS[k] && kindOk(k, user));
   if (!kinds.length) fail(400, '기록 종류를 골라주세요.');
@@ -1318,7 +1351,7 @@ route('PUT', '/api/items/:id', 'subscriber', ({ params, body, user }) => {
   // 버킷리스트 달성·회의 결정 체크는 가족 누구나, 그 밖의 수정은 쓴 사람 또는 평기자 이상
   if (!kindOk(r.kind, user)) fail(403, '권한이 없습니다.');
   const quick = body.quick === true && (r.kind === 'bucket' || r.kind === 'meeting' || r.kind === 'prep' || r.kind === 'vacation');
-  if (!quick && r.author_id !== user.id && !isRole(user, 'staff')) fail(403, '내가 쓴 기록만 고칠 수 있어요.');
+  if (!quick && r.kind !== 'fridge' && r.author_id !== user.id && !isRole(user, 'staff')) fail(403, '내가 쓴 기록만 고칠 수 있어요.');
   let data;
   if (quick) { // 체크 표시만 바꾼다 (다른 내용은 그대로)
     const old = JSON.parse(r.data || '{}'); const src = body.data && typeof body.data === 'object' ? body.data : {};
@@ -1334,7 +1367,7 @@ route('PUT', '/api/items/:id', 'subscriber', ({ params, body, user }) => {
 route('DELETE', '/api/items/:id', 'subscriber', ({ params, user }) => {
   const r = get('SELECT * FROM items WHERE id=?', params.id) || fail(404, '기록을 찾을 수 없어요.');
   if (!kindOk(r.kind, user)) fail(403, '권한이 없습니다.');
-  if (r.author_id !== user.id && !isRole(user, 'editor')) fail(403, '내가 쓴 기록만 지울 수 있어요.');
+  if (r.kind !== 'fridge' && r.author_id !== user.id && !isRole(user, 'editor')) fail(403, '내가 쓴 기록만 지울 수 있어요.');
   run('UPDATE items SET deleted=1 WHERE id=?', r.id); return { ok: true };
 });
 

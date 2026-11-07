@@ -2247,3 +2247,70 @@ svg.vc { width: 100%; height: auto; display: block; }
 .ev-who { display: flex; flex-wrap: wrap; align-items: center; gap: .25rem .375rem; margin-top: .25rem; }
 .ev-who .tag { font-size: .75rem; }
 .ft-t .ft-bd { color: var(--seal); }
+
+/* ───────── 부엌 — 레시피 · 냉장고를 부탁해 */
+.kc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 1rem; margin-top: 1rem; }
+.kc-card { display: flex; flex-direction: column; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); overflow: hidden; color: var(--ink); text-decoration: none; transition: transform .15s, box-shadow .15s; }
+.kc-card:hover { transform: translateY(-2px); box-shadow: 0 10px 24px -14px rgba(0,0,0,.35); }
+.kc-card img, .kc-card .kc-ph { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; }
+.kc-ph { display: grid; place-items: center; font-size: 2.75rem; background: var(--surface-2); }
+.kc-b { display: grid; gap: .2rem; padding: .75rem .875rem .9rem; }
+.kc-b small { color: var(--muted); font-size: .75rem; }
+.kc-b b { font-size: 1rem; line-height: 1.35; }
+.kc-fit { justify-self: start; font-size: .75rem; padding: .125rem .5rem; border-radius: 99px; background: var(--surface-2); color: var(--ink-2); margin-top: .25rem; }
+.kc-fit.all { background: color-mix(in srgb, var(--green) 16%, transparent); color: var(--green); font-weight: 700; }
+.kr-head { display: grid; grid-template-columns: minmax(0, 420px) minmax(0, 1fr); gap: 1.75rem; align-items: start; margin-top: 1.5rem; }
+.kr-photo { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; border-radius: var(--r-lg); }
+.kr-head .kc-ph.kr-photo { font-size: 5rem; }
+.kr-meta { display: flex; flex-wrap: wrap; gap: .375rem 1rem; color: var(--ink-2); font-size: .9rem; margin: .5rem 0 .75rem; }
+.kr-intro { font-family: var(--serif); line-height: 1.8; color: var(--ink-2); margin-bottom: 1rem; }
+.kr-grid { display: grid; grid-template-columns: minmax(0, 340px) minmax(0, 1fr); gap: 2.5rem; margin-top: 2rem; }
+.kr-grid h2 { font-family: var(--serif); font-size: 1.125rem; padding-bottom: .5rem; border-bottom: 2px solid var(--ink); margin-bottom: .75rem; }
+.kr-ing ul { list-style: none; padding: 0; margin: 0; }
+.kr-ing li { display: grid; grid-template-columns: 1fr auto; gap: 0 .75rem; padding: .5rem 0; border-bottom: 1px solid var(--line-2); }
+.kr-ing li small { grid-column: 1 / -1; font-size: .75rem; color: var(--muted); }
+.kr-ing li.need small { color: var(--seal); }
+.kr-ing li.have b::before { content: '✓ '; color: var(--green); }
+.kr-steps ol { counter-reset: st; list-style: none; padding: 0; margin: 0; display: grid; gap: 1.125rem; }
+.kr-steps li { counter-increment: st; position: relative; padding-left: 2.5rem; }
+.kr-steps li::before { content: counter(st); position: absolute; left: 0; top: 0; width: 1.75rem; height: 1.75rem; border-radius: 50%; background: var(--ink); color: var(--bg); display: grid; place-items: center; font-size: .8125rem; font-weight: 700; }
+.kr-steps li p { margin: 0 0 .5rem; line-height: 1.8; }
+.kr-steps li img { max-width: min(100%, 420px); border-radius: var(--r-md); }
+.kr-tip { margin-top: 1.5rem; padding: 1rem 1.125rem; border-radius: var(--r-lg); background: var(--surface); border: 1px dashed var(--line); }
+.kr-tip p { margin: .375rem 0 0; line-height: 1.75; }
+.kw-set { border: 1px solid var(--line); border-radius: var(--r-lg); padding: .875rem 1rem 1rem; display: grid; gap: .5rem; }
+.kw-set legend { padding: 0 .375rem; font-weight: 700; }
+.kw-ing { align-items: center; }
+.kw-step { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: .5rem; align-items: start; }
+.kw-n { width: 1.75rem; height: 1.75rem; border-radius: 50%; background: var(--ink); color: var(--bg); display: grid; place-items: center; font-size: .8125rem; font-weight: 700; margin-top: .4rem; }
+.kw-sp { display: flex; align-items: center; gap: .375rem; }
+.ks-h { font-size: .875rem; margin: .75rem 0 .25rem; }
+.fr-glance { grid-template-columns: repeat(4, minmax(0, 1fr)); margin-top: 1rem; }
+.fr-glance .gl { cursor: pointer; text-align: left; font: inherit; }
+.fr-glance .gl.on { border-color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); }
+.fr-alert { margin: 1rem 0 0; padding: .75rem 1rem; border-radius: var(--r-lg); background: var(--gold-soft); border: 1px solid var(--gold); font-size: .9rem; line-height: 1.6; }
+.fr-grid { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 2.5rem; margin-top: 1.5rem; align-items: start; }
+.fr-list { list-style: none; padding: 0; margin: 0; }
+.fr-item { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; gap: .75rem; align-items: center; padding: .75rem 0; border-bottom: 1px solid var(--line-2); }
+.fr-item.is-over { background: color-mix(in srgb, var(--seal) 7%, transparent); }
+.fr-ic { font-size: 1.5rem; width: 2.25rem; text-align: center; }
+.fr-b { display: grid; gap: .125rem; min-width: 0; }
+.fr-b small { color: var(--muted); font-size: .75rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fr-d { font-size: .75rem; font-weight: 700; padding: .125rem .5rem; border-radius: 99px; background: var(--surface-2); color: var(--ink-2); white-space: nowrap; }
+.fr-d.soon { background: var(--gold-soft); color: var(--gold); }
+.fr-d.today, .fr-d.over { background: var(--seal); color: #fff; }
+.fr-d.none { font-weight: 400; color: var(--muted); }
+.fr-acts { display: flex; align-items: center; gap: .5rem; }
+.fr-side { position: sticky; top: 7rem; padding: 1rem 1.125rem; border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--surface); }
+.fr-picks { list-style: none; padding: 0; margin: 0; display: grid; gap: .75rem; }
+.fr-picks a { display: flex; justify-content: space-between; gap: .5rem; align-items: center; color: var(--ink); text-decoration: none; }
+.fr-picks small { display: block; color: var(--muted); font-size: .75rem; margin-top: .125rem; line-height: 1.5; }
+.fr-common { margin-bottom: .25rem; }
+@media (max-width: 860px) {
+  .kr-head, .kr-grid, .fr-grid { grid-template-columns: minmax(0, 1fr); gap: 1.25rem; }
+  .fr-side { position: static; }
+  .fr-glance { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .fr-item { grid-template-columns: auto minmax(0, 1fr) auto; }
+  .fr-acts { grid-column: 2 / -1; justify-content: flex-end; }
+}
+@media print { .kr-head { grid-template-columns: 200px 1fr; } .kr-grid { grid-template-columns: 220px 1fr; } }
