@@ -92,7 +92,7 @@
         ${(() => { const link = (n) => `<a href="#/people/${encodeURIComponent(n)}">${esc(n)}</a>`; const kids = people.filter((x) => x.father === name || x.mother === name).map((x) => x.name);
           const bits = [p.father && `아버지 ${link(p.father)}`, p.mother && `어머니 ${link(p.mother)}`, p.spouse && `배우자 ${link(p.spouse)}`, kids.length && `자녀 ${kids.map(link).join(', ')}`].filter(Boolean);
           return bits.length ? `<p class="p-fam">${bits.join(' · ')} · <a href="#/family-tree">가계도 보기</a></p>` : ''; })()}</div>
-        <div class="p-acts">${!isGroup && p.facetime ? YT.ftButton(name, p.facetime, '') : ''}${YT.can('staff') ? '<button class="btn" id="editP">프로필 편집</button>' : ''}</div>
+        <div class="p-acts">${!isGroup && p.facetime ? YT.ftButton(name, p.facetime, '') : ''}${YT.can('staff') ? '<button class="btn" id="editP">프로필 편집</button>' : ''}${YT.can('staff') && !isGroup && !p.is_account ? '<button class="btn danger" id="delP">삭제</button>' : ''}</div>
       </div>
       <div class="person-grid">
         <section><div class="side-head"><h2>${isGroup ? '그룹 일정' : '생일·기념일'}</h2><a href="#/calendar">캘린더 ↗</a></div>
@@ -111,6 +111,22 @@
     if (eb) eb.onclick = () => YT.openEventForm(myBirthday, 'edit', () => { YT.clearCache(); YT.route(); });
     const add = YT.$('#addBd');
     if (add) add.onclick = () => YT.openEventForm({ kind: 'birthday', title: `${name} 생일`, hashtags: '#' + name }, 'new', () => YT.route());
+    const del = YT.$('#delP');
+    if (del) del.onclick = () => {
+      const fr = /친구|지인|동료|이웃|선배|후배|선생님/.test((p.relation || '') + (p.family_group || ''));
+      const m = YT.modal(`<h2 class="modal-title">${esc(name)} 삭제</h2>
+        <p>가족 앨범에서 <b>${esc(name)}</b>님의 프로필(소개·사진·관계·가계도 연결)을 지우고, 일정의 등장 인물에서도 빼요.</p>
+        ${myBirthday ? `<label class="check"><input type="checkbox" id="delEv" ${fr ? 'checked' : ''}> ‘${esc(myBirthday.title)}’ 일정도 휴지통으로 보내기</label>` : ''}
+        ${d.articles.length ? `<p class="muted small">기사 ${d.articles.length}편에 등장 인물로 들어가 있어서, 그 기사들 때문에 이름은 가족 앨범에 계속 보일 수 있어요. 기사에서 빼려면 기사를 ‘수정’해 주세요.</p>` : ''}
+        <p class="muted small">휴지통으로 보낸 생일 일정은 일정 › 달력 아래 ‘삭제한 일정’에서 편집장 이상이 되살릴 수 있어요. 지운 프로필은 되살릴 수 없어요.</p>
+        <div class="row gap end"><button type="button" class="btn" data-close>취소</button><button class="btn danger" id="delGo">삭제</button></div>`);
+      m.el.querySelector('#delGo').onclick = async () => {
+        try {
+          const ev = m.el.querySelector('#delEv'); const r = await YT.del('/api/people/' + encodeURIComponent(name) + (ev && ev.checked ? '?events=1' : ''));
+          m.close(); YT.clearCache(); YT.toast(`${name}님을 지웠어요${r.trashed ? ` · 생일 일정 ${r.trashed}개는 휴지통으로` : ''}.`); YT.go('#/people');
+        } catch (err) { YT.err(err); }
+      };
+    };
     const ed = YT.$('#editP');
     if (ed) ed.onclick = () => {
       const m = YT.modal(`<h2 class="modal-title">${esc(name)} 프로필</h2><form class="form" id="pForm">

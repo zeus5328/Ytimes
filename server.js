@@ -1029,10 +1029,38 @@ function eventFields(body) {
 }
 // 생일·기념일과 작성자가 없는(처음 옮겨온) 일정은 가족 공용 — 평기자 이상 누구나 고칠 수 있다
 const canEditEvent = (e, user) => isRole(user, 'editor') || (isRole(user, 'staff') && (e.author_id === user.id || !e.author_id || e.kind !== 'event'));
+// 친구 생일 제목 — "황윤수 생일 (김신중의 친구)" · "최서우 생일(서윤친구)" → { name, of, rel }
+const FRIEND_RELS = ['친구', '동료', '선생님', '이웃', '지인', '선배', '후배'];
+function parseFriendTitle(t) {
+  t = String(t || '').trim();
+  let m = /^(.+?)\s*생일\s*\(\s*(.+?)\s*의?\s*(친구|동료|선생님|이웃|지인|선배|후배)\s*\)$/.exec(t);
+  if (m) return { name: m[1].trim(), of: m[2].replace(/의$/, '').trim(), rel: m[3] };
+  m = /^(.+?)의\s*(친구|동료|선생님|이웃|지인|선배|후배)\s+(.+?)(?:의)?\s*생일$/.exec(t);
+  return m ? { name: m[3].trim(), of: m[1].trim(), rel: m[2] } : null;
+}
+// '서윤' → '김서윤'처럼 가족 계정 이름을 줄여 적었으면 그 계정 이름으로 (끝이 같은 계정이 하나뿐일 때만)
+function familyName(n) {
+  n = String(n || '').trim().replace(/^#/, ''); if (n.length < 2) return n;
+  const names = all('SELECT display_name n FROM users').map((r) => r.n).filter(Boolean);
+  if (names.includes(n)) return n;
+  const hit = names.filter((x) => x.length > n.length && x.endsWith(n));
+  return hit.length === 1 ? hit[0] : n;
+}
+// 친구 생일이면 제목·등장 인물을 "이름 생일 (가족 이름의 관계)" 모양으로 맞춘다
+function normalizeFriend(body) {
+  if (body.kind !== 'birthday') return;
+  const fr = body.friend_name ? { name: str(body.friend_name, 30).replace(/^#/, ''), of: str(body.friend_of, 30).replace(/^#/, ''), rel: body.friend_rel } : parseFriendTitle(body.title);
+  if (!fr || !fr.name || !fr.of) return;
+  const of = familyName(fr.of), rel = FRIEND_RELS.includes(fr.rel) ? fr.rel : '친구';
+  if (of === fr.name) return;
+  body.title = `${fr.name} 생일 (${of}의 ${rel})`;
+  body.hashtags = [...new Set([...tags(body.hashtags).filter((t) => t !== fr.of), fr.name, of])].map((t) => '#' + t).join(' ');
+  body.friend_name = fr.name; body.friend_of = of; body.friend_rel = rel;
+}
 // "황윤수 생일 (김신중의 친구)" — 인물 사전에 관계를 이어 준다 (이미 적어 둔 관계는 건드리지 않음)
 function linkFriend(body) {
   const name = str(body.friend_name, 30).replace(/^#/, ''), of = str(body.friend_of, 30).replace(/^#/, '');
-  const rel = ['친구', '동료', '선생님', '이웃', '지인', '선배', '후배'].includes(body.friend_rel) ? body.friend_rel : '친구';
+  const rel = FRIEND_RELS.includes(body.friend_rel) ? body.friend_rel : '친구';
   if (!name || !of || name === of) return;
   run(`INSERT INTO people(name,relation,family_group,bio,photo,emoji,updated) VALUES(?,?,?,?,?,?,?)
     ON CONFLICT(name) DO UPDATE SET relation=CASE WHEN COALESCE(people.relation,'')='' THEN excluded.relation ELSE people.relation END,
@@ -1040,7 +1068,7 @@ function linkFriend(body) {
     name, `${of}의 ${rel}`, '친구·지인', '', null, '', now());
 }
 route('POST', '/api/events', 'staff', ({ body, user }) => {
-  const f = eventFields(body); const id = uid();
+  normalizeFriend(body); const f = eventFields(body); const id = uid();
   run(`INSERT INTO events(id,title,kind,calendar,date,end_date,time,end_time,location,notes,birth_year,birth_month,birth_day,is_leap,hashtags,author_id,created,repeat,repeat_until,remind)
     VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, id, f.title, f.kind, f.calendar, f.date, f.end_date, f.time, f.end_time, f.location,
     f.notes, f.birth_year, f.birth_month, f.birth_day, f.is_leap, f.hashtags, user.id, now(), f.repeat, f.repeat_until, f.remind);
@@ -1050,7 +1078,7 @@ route('POST', '/api/events', 'staff', ({ body, user }) => {
 route('PUT', '/api/events/:id', 'staff', ({ params, body, user }) => {
   const e = get('SELECT * FROM events WHERE id=? AND deleted=0', params.id) || fail(404, '일정을 찾을 수 없습니다.');
   if (!canEditEvent(e, user)) fail(403, '본인이 등록한 일반 일정만 수정할 수 있어요. 생일·기념일은 평기자 이상 누구나 고칠 수 있어요.');
-  const f = eventFields(body);
+  normalizeFriend(body); const f = eventFields(body);
   run(`UPDATE events SET title=?,kind=?,calendar=?,date=?,end_date=?,time=?,end_time=?,location=?,notes=?,birth_year=?,birth_month=?,birth_day=?,is_leap=?,hashtags=?,repeat=?,repeat_until=?,remind=? WHERE id=?`,
     f.title, f.kind, f.calendar, f.date, f.end_date, f.time, f.end_time, f.location, f.notes, f.birth_year, f.birth_month, f.birth_day, f.is_leap, f.hashtags, f.repeat, f.repeat_until, f.remind, e.id);
   if (f.kind === 'birthday') linkFriend(body);
@@ -1335,7 +1363,8 @@ function peopleIndex() {
     const t = tags(e.hashtags); const last = t[t.length - 1];
     if (last && (/(동|산|구|시|친구)$/.test(last) || groupWords.has(last)) && t.length > 1) groups.add(last);
   }
-  return [...map.values()].map(p => ({ ...p, is_group: !p.has_profile && groups.has(p.name) }))
+  const accounts = new Set(all('SELECT display_name n FROM users').map((r) => r.n));
+  return [...map.values()].map(p => ({ ...p, is_group: !p.has_profile && groups.has(p.name), is_account: accounts.has(p.name) }))
     .sort((a, b) => (a.is_group - b.is_group) || a.name.localeCompare(b.name, 'ko'));
 }
 route('GET', '/api/people', null, () => ({ people: peopleIndex() }));
@@ -1379,6 +1408,22 @@ route('PUT', '/api/people/:name', 'staff', ({ params, body }) => {
     }
   }
   return { ok: true };
+});
+// 인물 지우기 — 프로필을 지우고, 일정의 등장 인물에서 빼고, 가계도 연결을 푼다. 원하면 그 사람 생일 일정도 휴지통으로
+route('DELETE', '/api/people/:name', 'staff', ({ params, query }) => {
+  const name = decodeURIComponent(params.name).slice(0, 30);
+  if (get('SELECT 1 FROM users WHERE display_name=?', name)) fail(400, '가족 계정이 있는 사람은 지울 수 없어요. 계정 이름을 바꾸거나 계정을 먼저 정리해 주세요.');
+  let trashed = 0, untagged = 0;
+  for (const e of all('SELECT id,title,kind,hashtags FROM events WHERE deleted=0')) {
+    const fr = e.kind === 'birthday' ? parseFriendTitle(e.title) : null;
+    const own = e.kind === 'birthday' && ((fr && fr.name === name) || new RegExp('^' + name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\s*생일').test(e.title));
+    if (own && query.events === '1') { run('UPDATE events SET deleted=1 WHERE id=?', e.id); trashed++; continue; }
+    const t = tags(e.hashtags); if (t.includes(name)) { run('UPDATE events SET hashtags=? WHERE id=?', t.filter((x) => x !== name).map((x) => '#' + x).join(' '), e.id); untagged++; }
+  }
+  run('DELETE FROM people WHERE name=?', name);
+  run("UPDATE people SET father='' WHERE father=?", name); run("UPDATE people SET mother='' WHERE mother=?", name); run("UPDATE people SET spouse='' WHERE spouse=?", name);
+  const articles = all("SELECT hashtags FROM articles WHERE deleted=0 AND status='published'").filter((a) => tags(a.hashtags).includes(name)).length;
+  return { ok: true, trashed, untagged, articles };
 });
 
 // ── 조회수 (신규)
@@ -1899,6 +1944,17 @@ route('PUT', '/api/points/monthly', 'admin', ({ body }) => {
 if (getSetting('sections_v2', '') !== '1') { // 포토제닉 → 찰칵! 이 순간
   for (const [from, to] of Object.entries(SECTION_RENAME)) run('UPDATE articles SET section=? WHERE section=?', to, from);
   setSetting('sections_v2', '1');
+}
+if (getSetting('friends_v1', '') !== '1') {
+  for (const e of all("SELECT id,title,kind,hashtags FROM events WHERE kind='birthday' AND deleted=0")) {
+    const b = { kind: 'birthday', title: e.title, hashtags: e.hashtags }; normalizeFriend(b);
+    if (!b.friend_name) continue;
+    if (b.title !== e.title || b.hashtags !== e.hashtags) run('UPDATE events SET title=?, hashtags=? WHERE id=?', b.title, b.hashtags, e.id);
+    linkFriend(b);
+    const short = parseFriendTitle(e.title).of; // 줄여 쓴 이름으로 적힌 관계를 고친다 ('서윤의 친구' → '김서윤의 친구')
+    if (short !== b.friend_of) run('UPDATE people SET relation=? WHERE name=? AND relation=?', `${b.friend_of}의 ${b.friend_rel}`, b.friend_name, `${short}의 ${b.friend_rel}`);
+  }
+  setSetting('friends_v1', '1');
 }
 if (getSetting('categories_v2', '') !== '1') {
   for (const [from, to] of Object.entries(CATEGORY_RENAME)) run('UPDATE articles SET category=? WHERE category=?', to, from);
