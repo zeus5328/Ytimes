@@ -27,6 +27,7 @@
           ${a.status === 'changes' && a.review_note ? `<div class="nr-note"><b>검토 메모</b> ${esc(a.review_note)}</div>` : ''}</div>
         <div class="nr-actions">${YT.state.user && YT.articleButtons ? YT.articleButtons(a).buttons.map(([act, label, kind]) => `<button class="btn small ${kind}" data-act="${act}">${label}</button>`).join('') : ''}${canEdit ? `<a class="btn small" href="#/write/${a.id}">수정</a>` : ''}${YT.can('reporter') ? '<a class="btn small ghost" href="#/newsroom">편집실</a>' : ''}</div>
       </div>` : ''}
+      <div class="art-layout${a.place || tagList.length || (a.writers || []).length ? '' : ' no-side'}">
       <article class="article ${a.section === '그림 일기' ? 'sec-drawing' : ''}">
         <div class="art-kicker"><a href="#/articles?section=${encodeURIComponent(a.section)}">${esc(a.section)}</a> · ${esc(a.category)} · ${esc(YT.monthLabel(a.issue_month || ''))}호</div>
         <h1 class="art-title">${esc(a.title)}</h1>
@@ -34,21 +35,24 @@
         ${a.photo ? `<figure class="art-main-photo"><img src="${YT.photoUrl(a.photo)}" alt="${esc(a.photo_caption || a.title)}">${a.photo_caption ? `<figcaption>${esc(a.photo_caption)}</figcaption>` : ''}</figure>` : ''}
         ${'speechSynthesis' in window ? `<div class="art-listen"><button class="btn small" id="ttsBtn" aria-pressed="false">소리로 듣기</button>${a.status === 'published' ? `<a class="btn small" href="#/read?from=${a.id}">크게 읽기</a>` : ''}<span class="tts-rate" id="ttsRate" hidden><button class="btn tiny" data-rate="0.8">천천히</button><button class="btn tiny" data-rate="1">보통</button><button class="btn tiny" data-rate="1.2">빠르게</button></span></div>` : ''}
         <div class="art-body">${YT.renderBlocks(a.blocks)}</div>
-        ${a.place ? (() => { const stops = a.places && a.places.length ? a.places : [a.place]; return `<section class="art-map-box" aria-label="다녀온 곳"><div class="art-map-head"><b>📍 ${stops.length > 1 ? `다녀온 곳 ${stops.length}곳` : esc(a.place.name)}</b><a href="#/map?focus=${a.id}">여행 지도에서 보기 →</a></div>
-          ${stops.length > 1 ? `<ol class="art-stops">${stops.map((p) => `<li>${esc(p.name)}</li>`).join('')}</ol>` : ''}<div class="art-map" id="artMap"><p class="muted small">지도를 불러오는 중…</p></div></section>`; })() : ''}
-        ${tagList.length ? `<div class="art-tags">${tagList.map((t) => `<a class="tag" href="#/people/${encodeURIComponent(t)}">#${esc(t)}</a>`).join('')}</div>` : ''}
         <div class="art-tools">
           <button class="btn small" id="printArt">인쇄</button>
           <button class="btn small" id="copyLink">공유하기</button>
           ${canEdit ? `<a class="btn small" href="#/write/${a.id}">수정</a>` : ''}
           <a class="btn small" href="#/print/${esc(a.issue_month)}">${esc(YT.monthLabel(a.issue_month || ''))} 지면 보기</a>
         </div>
+      </article>
+      <aside class="art-side" aria-label="기사 정보">
+        ${a.place ? (() => { const stops = a.places && a.places.length ? a.places : [a.place]; return `<section class="art-map-box" aria-label="다녀온 곳"><div class="art-map-head"><b>📍 ${stops.length > 1 ? `다녀온 곳 ${stops.length}곳` : esc(a.place.name)}</b><a href="#/map?focus=${a.id}">여행 지도에서 보기 →</a></div>
+          ${stops.length > 1 ? `<ol class="art-stops">${stops.map((p) => `<li>${esc(p.name)}</li>`).join('')}</ol>` : ''}<div class="art-map" id="artMap"><p class="muted small">지도를 불러오는 중…</p></div></section>`; })() : ''}
+        ${tagList.length ? `<div class="art-tags">${tagList.map((t) => `<a class="tag" href="#/people/${encodeURIComponent(t)}">#${esc(t)}</a>`).join('')}</div>` : ''}
         ${(a.writers || []).length ? `<section class="art-writers" aria-label="기자 소개">${a.writers.map((w) => `<div class="aw-card">
           <span class="aw-avatar" aria-hidden="true">${esc(YT.initials(w.name))}</span>
           <div class="aw-body"><div class="aw-name"><b>${esc(w.name)}</b>${w.id ? ' 기자' : ''}${w.role_label ? `<span class="aw-role">${esc(w.role_label)}</span>` : ''}${a.writers.length > 1 ? `<span class="aw-role ghost">${w.lead ? '대표 기자' : '함께 쓴 기자'}</span>` : ''}</div>
             <div class="aw-meta">${w.count ? `지금까지 기사 ${w.count}편 발행` : '첫 기사를 준비하고 있어요'}${w.since ? ` · ${esc(YT.monthLabel(w.since.slice(0, 7)))}부터 활동` : ''}</div>
             ${w.recent.length ? `<ul class="aw-recent">${w.recent.map((r) => `<li><a href="#/article/${r.id}">${esc(r.title)}</a></li>`).join('')}</ul>` : ''}</div></div>`).join('')}</section>` : ''}
-        ${a.status === 'published' ? `
+      </aside>
+      ${a.status === 'published' ? `<div class="art-social">
         <section class="reactions" aria-label="응원 반응">
           <div class="rx-label">이 기사에 마음 남기기</div>
           <div class="rx-row" id="rxRow">${YT.state.emojis.map((e) => `<button class="rx" data-emoji="${e}" aria-pressed="false"><span>${e}</span><b>${a.reactions[e] || 0}</b></button>`).join('')}</div>
@@ -60,8 +64,8 @@
             <textarea class="input" name="body" maxlength="500" rows="2" placeholder="따뜻한 한마디를 남겨주세요 (최대 500자)" required></textarea>
             <button class="btn primary">댓글 달기</button></form>`
             : `<p class="muted small">댓글은 가족 계정으로 <a href="#/login?next=${encodeURIComponent(location.hash)}">로그인</a> 후 남길 수 있어요. 반응 버튼은 누구나 누를 수 있어요.</p>`}
-        </section>` : ''}
-      </article>
+        </section></div>` : ''}
+      </div>
       ${related.length ? `<section class="related"><div class="side-head"><h2>함께 읽으면 좋은 기사</h2></div><div class="card-grid three">${related.map((r) => YT.articleCard(r, { excerpt: false })).join('')}</div></section>` : ''}
       <nav class="art-nav">${prev ? `<a href="#/article/${prev.id}">← 이전 기사<br><b>${esc(prev.title)}</b></a>` : '<span></span>'}
         <a href="#/" class="center">기사 목록으로</a>
