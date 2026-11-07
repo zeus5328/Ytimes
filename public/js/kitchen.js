@@ -1,4 +1,4 @@
-/* 부엌 — 레시피(#/kitchen) · 냉장고를 부탁해(#/fridge)
+/* 냉장고를 부탁해 — 레시피(#/kitchen) · 냉장고(#/fridge) · 신문 레시피북(#/recipes, house.js)
    · 레시피와 냉장고 음식은 items(kind 'recipe' · 'fridge')에 저장
    · 냉장고에 있는 재료로 만들 수 있는 레시피를 찾아 주고, 유통기한이 가까운 재료를 먼저 쓰게 도와줘요 */
 (function () {
@@ -65,7 +65,7 @@
         : `<div class="empty-state"><h2>${recipes.length ? '찾는 레시피가 없어요' : '첫 레시피를 올려 주세요'}</h2><p class="muted">할머니의 김치찌개, 아빠의 주말 볶음밥… 우리 집 손맛을 남겨 두면 냉장고 재료로 뭘 만들지 찾아 줘요.</p></div>`;
       YT.$$('#kcCats .chip').forEach((c) => c.classList.toggle('on', c.dataset.c === cat));
     };
-    view.innerHTML = YT.subTabs('kitchen') + YT.pageHead('', '레시피', '우리 집 요리 비법을 모아 두는 곳이에요. 재료를 적어 두면 ‘냉장고를 부탁해’가 냉장고 재료로 만들 수 있는 요리를 찾아 줘요.',
+    view.innerHTML = YT.subTabs('kitchen') + YT.pageHead('', '레시피', '우리 집 요리 비법을 모아 두는 곳이에요. 재료를 적어 두면 ‘냉장고’ 화면이 냉장고 재료로 만들 수 있는 요리를 찾아 줘요.',
       `<div class="row gap">${recipes.length ? '<button class="btn" id="kcShop">장보기 목록</button>' : ''}${YT.can('subscriber') ? '<a class="btn primary" href="#/kitchen/write">+ 레시피 올리기</a>' : ''}</div>`)
       + `<div class="hs-bar"><div class="chips" id="kcCats"><button class="chip" data-c="">전체 ${recipes.length}</button>${CATS.filter((c) => recipes.some((r) => r.data.category === c)).map((c) => `<button class="chip" data-c="${esc(c)}">${CAT_ICON[c]} ${esc(c)} ${recipes.filter((r) => r.data.category === c).length}</button>`).join('')}</div>
         <input type="search" class="input sm" id="kcQ" placeholder="요리·재료 찾기" aria-label="요리·재료 찾기" style="max-width:14rem"></div>
@@ -183,7 +183,7 @@
   YT.addRoute('/kitchen/write', writer);
   YT.addRoute('/kitchen/write/:id', writer);
 
-  // ───────── 냉장고를 부탁해
+  // ───────── 냉장고
   YT.addRoute('/fridge', async (view) => {
     view.className = 'container';
     if (!YT.can('subscriber')) return needLogin(view, '냉장고 관리');
@@ -218,7 +218,7 @@
       // 냉장고 재료로 만들 수 있는 요리 — 있는 재료 비율이 높고, 빨리 먹어야 할 재료를 쓰는 요리부터
       const fit = matcher(fridge);
       const picks = recipes.map((r) => ({ r, m: fit(r) })).filter((x) => x.m.got > 0).sort((a, b) => (b.m.urgent.length - a.m.urgent.length) || (b.m.score - a.m.score) || (b.m.got - a.m.got)).slice(0, 6);
-      view.innerHTML = YT.subTabs('kitchen') + YT.pageHead('', '냉장고를 부탁해', '냉장고에 무엇이 있는지 가족이 함께 적어 두고, 유통기한이 가까운 음식부터 챙겨요. 있는 재료로 만들 수 있는 레시피도 찾아 줘요.', '<button class="btn primary" id="frAdd">+ 냉장고에 넣기</button>')
+      view.innerHTML = YT.subTabs('kitchen') + YT.pageHead('', '우리 집 냉장고', '냉장고에 무엇이 있는지 가족이 함께 적어 두고, 유통기한이 가까운 음식부터 챙겨요. 있는 재료로 만들 수 있는 레시피도 찾아 줘요.', '<button class="btn primary" id="frAdd">+ 냉장고에 넣기</button>')
         + `<div class="glance fr-glance">
             <button class="gl ${place === '' ? 'on' : ''}" data-pl=""><span>전체</span><b>${fridge.length}<small>가지</small></b></button>
             ${PLACES.map((p) => `<button class="gl ${place === p ? 'on' : ''}" data-pl="${p}"><span>${p === '냉장' ? '🧊 냉장' : p === '냉동' ? '❄️ 냉동' : '🧺 실온'}</span><b>${fridge.filter((f) => f.data.place === p).length}<small>가지</small></b></button>`).join('')}

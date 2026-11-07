@@ -295,7 +295,7 @@
               <label>발행월<select class="select" id="wMonth">${months.map((m) => `<option value="${m}" ${m === st.issue_month ? 'selected' : ''}>${YT.monthLabel(m)}호</option>`).join('')}</select></label></div>
             <p class="muted small" id="catDesc"></p><div id="hlWarn"></div>
           </section>
-          <section class="ws"><h3>등장 인물 <small>가족 앨범에 연결돼요</small></h3>
+          <section class="ws"><h3>등장 인물 <small>가족 사전에 연결돼요</small></h3>
             <div class="tag-in" id="tagBox"><span id="tagChips"></span><input id="tagInput" list="tagList" placeholder="이름 입력 후 Enter" aria-label="등장 인물 추가" autocomplete="off"></div>
             <datalist id="tagList">${peopleNames.map((n) => `<option value="${esc(n)}">`).join('')}</datalist>
           </section>
@@ -534,7 +534,7 @@
     YT.$('#tplBtn').onclick = async () => {
       let tpl = TEMPLATES[st.section] ? TEMPLATES[st.section][2] : '';
       if (st.section === '인(人)터뷰') tpl = interviewTpl(); // 누를 때마다 다른 질문
-      if (st.section === '우리 집 날씨') { // 가족 광장의 기분 날씨를 불러와 채운다
+      if (st.section === '우리 집 날씨') { // 사랑방의 기분 날씨를 불러와 채운다
         try {
           const { notes } = await YT.api('/api/notes?month=' + st.issue_month); const W = YT.MOOD_W || {};
           const ns = notes.filter((n) => W[n.mood]); const cnt = {}; ns.forEach((n) => { cnt[n.mood] = (cnt[n.mood] || 0) + 1; });

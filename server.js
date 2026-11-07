@@ -1278,7 +1278,7 @@ const ITEM_KINDS = {
   address: { s: { name: 40, zip: 10, addr1: 120, addr2: 120, phone: 30, note: 60 }, b: ['send'], role: 'editor' },
   vacation: { s: { student: 30, title: 60, season: 20, start: 10, end: 10, motto: 120 }, v: true }, // 방학계획표
   recipe: { s: { title: 60, category: 16, servings: 12, time: 12, level: 8, chef: 30, intro: 600, tip: 800, photo: 60 }, r: true }, // 부엌 › 레시피
-  fridge: { s: { name: 40, cat: 16, place: 6, qty: 20, bought: 10, expires: 10, memo: 120 }, f: true }, // 부엌 › 냉장고를 부탁해 (가족 누구나 고치고 비움)
+  fridge: { s: { name: 40, cat: 16, place: 6, qty: 20, bought: 10, expires: 10, memo: 120 }, f: true }, // 냉장고를 부탁해 › 냉장고 (가족 누구나 고치고 비움)
 };
 const RECIPE_CATS = ['밥·죽', '면·국수', '국·찌개', '반찬', '고기', '해산물', '간식·디저트', '빵·브런치', '음료', '기타'];
 const FRIDGE_CATS = ['채소·과일', '고기·생선', '유제품·달걀', '반찬·국', '소스·양념', '음료', '냉동식품', '간식', '기타'];
@@ -1329,7 +1329,7 @@ function fridgeNotices() {
   const parents = usersWith('senior');
   for (const { r, d } of rows) {
     const when = d.expires < today ? '유통기한이 지났어요' : d.expires === today ? '오늘까지예요' : '내일까지예요';
-    notify([...parents, r.author_id], { kind: 'fridge', title: `🧊 ${d.name} — ${when}`, body: `${d.place || '냉장'}${d.qty ? ' · ' + d.qty : ''} · 냉장고를 부탁해에서 확인해 주세요.`, link: '#/fridge', ukey: `fridge:${r.id}:${d.expires}:${d.expires < today ? 'over' : d.expires === today ? 'today' : 'soon'}` });
+    notify([...parents, r.author_id], { kind: 'fridge', title: `🧊 ${d.name} — ${when}`, body: `${d.place || '냉장'}${d.qty ? ' · ' + d.qty : ''} · 냉장고를 부탁해 › 냉장고에서 확인해 주세요.`, link: '#/fridge', ukey: `fridge:${r.id}:${d.expires}:${d.expires < today ? 'over' : d.expires === today ? 'today' : 'soon'}` });
   }
 }
 route('GET', '/api/items', 'subscriber', ({ query, user }) => {
@@ -1433,7 +1433,7 @@ function kinCtx() {
   const v = { P, by, accounts, group }; kinMemo = { t: Date.now(), v }; return v;
 }
 const MANUAL_DEFAULT = new Set(['', '우리 가족']);
-// 가족 앨범에 보일 묶음 — 직접 적은 묶음(해바라기마을 등)이 먼저, 그다음 가계도, 친구, 기본 ‘우리 가족’
+// 가족 사전에 보일 묶음 — 직접 적은 묶음(해바라기마을 등)이 먼저, 그다음 가계도, 친구, 기본 ‘우리 가족’
 function personGroup(name, ctx = kinCtx()) {
   const p = ctx.by.get(name) || {}; const g = groupName(p.family_group);
   if (!MANUAL_DEFAULT.has(g)) return g;
@@ -2111,7 +2111,7 @@ function birthdayPoints(user) {
   const d = b.dates.filter((x) => x <= today && x >= BDAY_START && Date.parse(today) - Date.parse(x) <= 30 * 864e5).sort().pop();
   if (!d) return;
   if (addPoints(user.id, amt, `생일 축하 포인트 (${d.slice(0, 4)})`, 'birthday', 'bday-' + d))
-    notify([user.id], { kind: 'points', title: `생일 축하해요! +${amt.toLocaleString('ko-KR')}포인트`, body: '유니 타임즈가 드리는 생일 선물이에요. 원고료 · 쿠폰에서 써 보세요.', link: '#/points', ukey: 'bday-points:' + d });
+    notify([user.id], { kind: 'points', title: `생일 축하해요! +${amt.toLocaleString('ko-KR')}포인트`, body: '유니 타임즈가 드리는 생일 선물이에요. 놀이터 › 적립금 은행에서 써 보세요.', link: '#/points', ukey: 'bday-points:' + d });
 }
 
 // 매달 포인트 — 정해 둔 가족에게 달마다 한 번 (그 달에 처음 들어올 때)
@@ -2124,7 +2124,7 @@ function monthlyPoints(user) {
   const amt = Math.max(0, parseInt(monthlyConf()[user && user.id], 10) || 0); if (!amt) return;
   const ym = kstToday().slice(0, 7);
   if (addPoints(user.id, amt, `${+ym.slice(5)}월 포인트`, 'monthly', 'monthly-' + ym))
-    notify([user.id], { kind: 'points', title: `${+ym.slice(5)}월 포인트 +${amt.toLocaleString('ko-KR')}P`, body: '이번 달 포인트가 들어왔어요. 원고료 · 쿠폰에서 써 보세요.', link: '#/points', ukey: 'monthly:' + ym });
+    notify([user.id], { kind: 'points', title: `${+ym.slice(5)}월 포인트 +${amt.toLocaleString('ko-KR')}P`, body: '이번 달 포인트가 들어왔어요. 놀이터 › 적립금 은행에서 써 보세요.', link: '#/points', ukey: 'monthly:' + ym });
 }
 route('PUT', '/api/points/monthly', 'admin', ({ body }) => {
   const u = get('SELECT id FROM users WHERE id=?', body.user_id) || fail(404, '계정을 찾을 수 없어요.');

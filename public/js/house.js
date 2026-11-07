@@ -1,7 +1,7 @@
 /* 가족 기록과 살림 화면들 — 메뉴 자리:
-   신문 › 기사: 레시피북(#/recipes) · 여행 지도(#/map)
-   일정 › 할 일: 한눈에(#/todo) · 집안일 당번 · 가족회의 · 버킷리스트
-   가족 › 가족 앨범: 성장 기록(#/growth) · 가족 연표(#/timeline)
+   신문 › 기사: 여행 지도(#/map) · 냉장고를 부탁해 › 신문 레시피북(#/recipes)
+   우리 집 › 집안일: 한눈에(#/todo) · 집안일 당번 · 가족회의 · 버킷리스트
+   가족 › 가족 사전: 성장 기록(#/growth) · 가족 연표(#/timeline)
    편집국 › 기자단(#/reporters) */
 (function () {
   'use strict';
@@ -576,11 +576,11 @@
     try { await fn(view.querySelector('#houseBox')); } catch (err) { view.querySelector('#houseBox').innerHTML = `<div class="empty-state"><p>${esc(err.message || '불러오지 못했어요.')}</p></div>`; }
   };
   const TODO = { chores, meeting, bucket, prep };
-  YT.addRoute('/todo', mount('할 일', '집안일 당번, 가족회의에서 정한 일, 함께 해 보고 싶은 일을 한곳에서 챙겨요.', 'todo', overview));
-  YT.addRoute('/todo/:tab', async (view, params) => (TODO[params.tab] ? mount('할 일', '집안일 당번, 가족회의에서 정한 일, 함께 해 보고 싶은 일을 한곳에서 챙겨요.', 'todo', TODO[params.tab])(view) : YT.go('#/todo')));
-  YT.addRoute('/growth', mount('가족 앨범', '가족 한 사람 한 사람의 이야기 — 인물, 자라는 모습, 우리 가족의 큰일을 모았어요.', 'album', growth));
-  YT.addRoute('/timeline', mount('가족 앨범', '가족 한 사람 한 사람의 이야기 — 인물, 자라는 모습, 우리 가족의 큰일을 모았어요.', 'album', timeline));
-  YT.addRoute('/recipes', mount('기사', '우리 가족 신문에 실린 기사를 모아 보는 곳이에요.', 'articles', recipes, false));
+  YT.addRoute('/todo', mount('집안일', '집안일 당번, 가족회의에서 정한 일, 함께 해 보고 싶은 일을 한곳에서 챙겨요.', 'todo', overview));
+  YT.addRoute('/todo/:tab', async (view, params) => (TODO[params.tab] ? mount('집안일', '집안일 당번, 가족회의에서 정한 일, 함께 해 보고 싶은 일을 한곳에서 챙겨요.', 'todo', TODO[params.tab])(view) : YT.go('#/todo')));
+  YT.addRoute('/growth', mount('가족 사전', '가족 한 사람 한 사람의 이야기 — 인물, 자라는 모습, 우리 가족의 큰일을 모았어요.', 'album', growth));
+  YT.addRoute('/timeline', mount('가족 사전', '가족 한 사람 한 사람의 이야기 — 인물, 자라는 모습, 우리 가족의 큰일을 모았어요.', 'album', timeline));
+  YT.addRoute('/recipes', mount('신문 레시피북', '신문에 실린 요리 기사를 모아 책처럼 엮어요. 우리 집 레시피는 ‘레시피’에 있어요.', 'kitchen', recipes, false));
   YT.addRoute('/map', mount('기사', '우리 가족 신문에 실린 기사를 모아 보는 곳이에요.', 'articles', map, false));
   YT.addRoute('/reporters', mount('기자단', '가족 기자들의 기록과 배지. 연말 합본호에는 시상식이 실려요.', 'desk', reporters, false));
   // 예전 주소(우리 집)로 들어오면 새 자리로

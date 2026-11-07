@@ -135,12 +135,12 @@
             ${long.map(storyHtml).join('')}
             ${photoPick ? `<article class="np-story photo-pick"><div class="np-kicker">${esc(photoPick.section)} · 이달의 한 장</div>${fig(photoPick, 'wide')}<p class="np-pick-cap"><b>${esc(photoPick.title)}</b> <span>${esc(photoPick.author_name)} 기자</span></p></article>` : ''}
             ${briefs.length ? `<section class="np-briefs"><h4 class="np-sec">짧은 소식</h4><div class="np-brief-grid">${briefs.map((a) => `<article class="np-brief"><h5>${esc(a.title)}</h5>${textOf(a) ? `<p>${YT.nl2br(clip(textOf(a), 200))}</p>` : ''}${qrBox(a)}<span class="np-byline">${esc(a.author_name)} 기자</span></article>`).join('')}</div></section>` : ''}
-            ${long.length + briefs.length + (photoPick ? 1 : 0) < 3 && (mPolls.length || mNotes.length) ? `<section class="np-square"><h4 class="np-sec">가족 광장에서</h4>
+            ${long.length + briefs.length + (photoPick ? 1 : 0) < 3 && (mPolls.length || mNotes.length) ? `<section class="np-square"><h4 class="np-sec">사랑방에서</h4>
               ${mPolls.map((p) => { const tot = p.counts.reduce((x, y) => x + y, 0) || 1; const best = Math.max(...p.counts);
                 return `<div class="np-poll"><b>${esc(p.question)}</b><span class="np-byline">${p.voters}명 참여${p.closed ? ' · 마감' : ''}</span><ul>${p.options.map((o, i) => `<li class="${p.counts[i] === best && best ? 'win' : ''}"><span>${esc(o)}</span><i style="--w:${Math.round(p.counts[i] / tot * 100)}%"></i><small>${p.counts[i]}표</small></li>`).join('')}</ul></div>`; }).join('')}
               ${mNotes.length ? `<div class="np-notes">${mNotes.map((n) => `<p><span>${esc(n.mood || '')}</span>“${esc(n.body)}” <small>— ${esc(n.name)}, ${+n.created.slice(8, 10)}일</small></p>`).join('')}</div>` : ''}
             </section>` : ''}
-            ${!long.length && !briefs.length && !photoPick && !mPolls.length && !mNotes.length ? `<p class="np-muted np-pad">이번 호는 1면 기사 한 편으로 꾸몄어요. 가족 광장에 투표나 한마디를 남기면 이 자리에 함께 실려요.</p>` : ''}
+            ${!long.length && !briefs.length && !photoPick && !mPolls.length && !mNotes.length ? `<p class="np-muted np-pad">이번 호는 1면 기사 한 편으로 꾸몄어요. 사랑방에 투표나 한마디를 남기면 이 자리에 함께 실려요.</p>` : ''}
           </div>
           <aside class="np-side">
             ${special.length ? `<div class="np-box"><h4>이달의 축하</h4>${list(special, (o) => `<li><b>${md(o.date)}</b><span>${YT.eventIcon(o)} ${esc(o.title)}${o.age ? ` <small>${o.age}세</small>` : ''}${o.anniversary_years ? ` <small>${o.anniversary_years}주년</small>` : ''}</span></li>`)}</div>` : ''}
@@ -255,7 +255,7 @@
           <div class="aw-best"><small>올해의 기사 ${vote ? `(가족 투표 · ${vote.voters}명 참여)` : '(조회·반응·댓글 순)'}</small>
             <b>${esc(voteWin || (rs.top[0] ? rs.top[0].title : ''))}</b>
             <ol>${rs.top.slice(0, 5).map((t) => `<li>${esc(t.title)} <small>${esc(t.author_name)}</small></li>`).join('')}</ol></div>
-          ${YT.can('editor') && rs.top.length >= 2 ? `<div class="no-print aw-act">${vote ? `<a class="btn small" href="#/board">투표 현황 보기</a>` : `<button class="btn small primary" id="awVote">‘올해의 기사’ 가족 투표 열기</button>`}<span class="muted small">후보 ${Math.min(8, rs.top.length)}편으로 가족 광장에 투표를 올려요.</span></div>` : ''}
+          ${YT.can('editor') && rs.top.length >= 2 ? `<div class="no-print aw-act">${vote ? `<a class="btn small" href="#/board">투표 현황 보기</a>` : `<button class="btn small primary" id="awVote">‘올해의 기사’ 가족 투표 열기</button>`}<span class="muted small">후보 ${Math.min(8, rs.top.length)}편으로 사랑방에 투표를 올려요.</span></div>` : ''}
         </section>` : ''}
         ${months.map((m) => `<section class="bk-month"><header class="bk-mhead"><span>${esc(S.site_name)}</span><h2>${+m.slice(5)}월호</h2><span>${y}.${m.slice(5)}</span></header>
           ${arts.filter((a) => a.issue_month === m).map((a) => `<article class="bk-art">
@@ -268,7 +268,7 @@
       </div></div>`;
     YT.$('#bkYear').onchange = (e) => YT.go('#/print-year/' + e.target.value);
     const av = YT.$('#awVote'); if (av) av.onclick = async () => {
-      try { await YT.post('/api/polls', { question: voteQ, options: rs.top.slice(0, 8).map((t) => t.title), closes: `${y}-12-31` }); YT.toast('가족 광장에 투표를 올렸어요.'); YT.route(); } catch (err) { YT.err(err); }
+      try { await YT.post('/api/polls', { question: voteQ, options: rs.top.slice(0, 8).map((t) => t.title), closes: `${y}-12-31` }); YT.toast('사랑방에 투표를 올렸어요.'); YT.route(); } catch (err) { YT.err(err); }
     };
     YT.$('#bkPrint').onclick = () => {
       const sizeStyle = document.getElementById('pageSize') || document.head.appendChild(Object.assign(document.createElement('style'), { id: 'pageSize' }));

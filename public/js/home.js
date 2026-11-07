@@ -34,7 +34,7 @@
   function celebrateToday(todays, ft) {
     if (!todays.length) return '';
     const first = todays[0];
-    // 오늘 주인공에게 바로 페이스타임 (가족 앨범에 연락처가 있으면)
+    // 오늘 주인공에게 바로 페이스타임 (가족 사전에 연락처가 있으면)
     const contacts = (ft && ft.contacts) || {};
     // 오늘의 주인(생일이면 그 사람, 기념일이면 두 사람) — 친구 생일에 가족을 잘못 잇지 않게 제목이 아니라 주인으로
     const calls = [...new Set(todays.flatMap((o) => (o.owners || []).filter((n) => contacts[n])))];
@@ -133,7 +133,7 @@
             : '<p class="muted">기사를 읽고 응원을 남기면 순위가 생겨요.</p>'}
         </div>
         <div>
-          <div class="side-head"><h2>가족 투표</h2><a href="#/board">가족 광장</a></div>
+          <div class="side-head"><h2>가족 투표</h2><a href="#/board">사랑방</a></div>
           <div id="homePoll">${polls.length ? polls.map(YT.pollCard).join('') : `<p class="muted">진행 중인 투표가 없어요.</p>${YT.can('subscriber') ? '<button class="btn small" id="homeNewPoll">가족에게 물어보기</button>' : ''}`}</div>
         </div>
       </section>
@@ -159,7 +159,7 @@
         ${articles.length > 1 ? `<div class="card-grid">${articles.filter((a) => a !== top).slice(0, 4).map((a) => YT.articleCard(a)).join('')}</div>` : ''}
         <div class="row gap mt"><a class="btn" href="#/articles">코너·분류·발행월로 찾아보기</a><a class="btn ghost" href="#/print">이달의 지면 보기</a></div></section>
 
-      <section class="band"><div class="side-head"><h2>이달의 생일</h2><a href="#/people">가족 앨범</a></div><ul class="bd-grid" id="monthBd"></ul></section>`;
+      <section class="band"><div class="side-head"><h2>이달의 생일</h2><a href="#/people">가족 사전</a></div><ul class="bd-grid" id="monthBd"></ul></section>`;
 
     // 투표·한마디
     YT.bindPolls(YT.$('#homePoll'), polls, () => { YT.$('#homePoll').innerHTML = polls.map(YT.pollCard).join(''); });

@@ -1,4 +1,4 @@
-/* 가족 앨범 — 인물 (성장 기록·가족 연표는 house.js) */
+/* 가족 사전 — 인물 (성장 기록·가족 연표는 house.js) */
 (function () {
   'use strict';
   const { esc } = YT;
@@ -40,14 +40,14 @@
     const order = Object.keys(groups).sort((a, b) => rk(a) - rk(b) || groups[b].length - groups[a].length);
     for (const g of order) groups[g].sort((a, b) => (a.is_account ? 0 : 1) - (b.is_account ? 0 : 1) || a.name.localeCompare(b.name, 'ko'));
     const today = YT.today();
-    view.innerHTML = YT.subTabs('album') + YT.pageHead('', '가족 앨범', '가족 한 사람 한 사람의 이야기 — 이름을 누르면 생일·기념일·관련 기사를 한곳에서 볼 수 있어요.', YT.can('staff') ? '<button class="btn primary" id="addPerson">+ 인물 추가</button>' : '')
+    view.innerHTML = YT.subTabs('album') + YT.pageHead('', '가족 사전', '가족 한 사람 한 사람의 이야기 — 이름을 누르면 생일·기념일·관련 기사를 한곳에서 볼 수 있어요.', YT.can('staff') ? '<button class="btn primary" id="addPerson">+ 인물 추가</button>' : '')
       + `<input type="search" class="input" id="pSearch" placeholder="이름 검색" aria-label="이름 검색" style="max-width:320px">
       <div class="chips mt">${order.map((g) => `<a class="chip" href="#pg-${encodeURIComponent(g)}">${esc(g)} <small>${groups[g].length}</small></a>`).join('')}</div>
       ${order.map((g) => `<section class="p-group" id="pg-${encodeURIComponent(g)}"><div class="side-head"><h2>${esc(g)}</h2>${people.some((x) => x.is_group && x.name === g) ? `<a href="#/people/${encodeURIComponent(g)}">모아 보기 →</a>` : ''}</div>
         <div class="p-grid">${groups[g].map((p) => { const b = p.next_birthday || nextBd.get(p.name); return `<a class="p-card" data-name="${esc(p.name)}" href="#/people/${encodeURIComponent(p.name)}">${avatar(p)}
           <div><b>${esc(p.name)}</b>${p.relation ? `<span class="p-rel">${esc(p.relation)}</span>` : ''}
           <div class="muted small">${b ? `생일 ${b.date.slice(5).replace('-', '/')} · ${b.date === today ? '오늘!' : 'D-' + YT.dayDiff(today, b.date)}` : ''}${p.article_count ? ` · 기사 ${p.article_count}` : ''}</div></div></a>`; }).join('')}</div></section>`).join('')}
-      <p class="muted small mt">기사에 <b>등장 인물</b>을 넣거나 생일을 등록하면 가족 앨범에 자동으로 추가돼요. 지역·모임 이름(예: 해바라기마을)은 가족 그룹으로 묶여요. 위의 ‘성장 기록’·‘가족 연표’ 탭에서 자라는 모습과 큰일도 볼 수 있어요.</p>`;
+      <p class="muted small mt">기사에 <b>등장 인물</b>을 넣거나 생일을 등록하면 가족 사전에 자동으로 추가돼요. 지역·모임 이름(예: 해바라기마을)은 가족 그룹으로 묶여요. 위의 ‘성장 기록’·‘가족 연표’ 탭에서 자라는 모습과 큰일도 볼 수 있어요.</p>`;
     const ap = YT.$('#addPerson');
     if (ap) ap.onclick = () => {
       const groups = [...new Set(people.map((p) => p.family_group).filter(Boolean))];
@@ -62,10 +62,10 @@
       f.onsubmit = async (e) => {
         e.preventDefault(); const name = f.name.value.trim().replace(/^#/, '').replace(/\s+/g, '');
         if (!name) return;
-        if (people.some((p) => p.name === name) && !YT.confirm(`‘${name}’은(는) 이미 가족 앨범에 있어요. 관계·그룹을 이 내용으로 바꿀까요?`)) return;
+        if (people.some((p) => p.name === name) && !YT.confirm(`‘${name}’은(는) 이미 가족 사전에 있어요. 관계·그룹을 이 내용으로 바꿀까요?`)) return;
         try {
           await YT.put('/api/people/' + encodeURIComponent(name), { relation: f.relation.value, family_group: f.family_group.value, bio: f.bio.value });
-          const bd = f.bd.checked; m.close(); YT.toast(`${name}님을 가족 앨범에 추가했어요.`);
+          const bd = f.bd.checked; m.close(); YT.toast(`${name}님을 가족 사전에 추가했어요.`);
           if (bd) YT.openEventForm({ kind: 'birthday', title: `${name} 생일`, hashtags: '#' + name }, 'new', () => YT.go('#/people/' + encodeURIComponent(name)));
           else YT.go('#/people/' + encodeURIComponent(name));
         } catch (err) { YT.err(err); }
@@ -78,7 +78,7 @@
     const [d, { people }] = await Promise.all([YT.api('/api/people/' + encodeURIComponent(name)), YT.api('/api/people')]);
     const me = people.find((p) => p.name === name) || { name };
     if (d.exists === false && !people.some((x) => x.name === name)) {
-      view.innerHTML = YT.subTabs('album') + `<div class="empty-state"><h2>‘${esc(name)}’님을 찾을 수 없어요</h2><p class="muted">가족 앨범에 없는 이름이에요. 이름을 다시 확인하거나 가족 앨범에서 찾아보세요.</p><a class="btn" href="#/people">가족 앨범으로</a></div>`;
+      view.innerHTML = YT.subTabs('album') + `<div class="empty-state"><h2>‘${esc(name)}’님을 찾을 수 없어요</h2><p class="muted">가족 사전에 없는 이름이에요. 이름을 다시 확인하거나 가족 사전에서 찾아보세요.</p><a class="btn" href="#/people">가족 사전으로</a></div>`;
       return;
     }
     const p = { ...me, ...d.person };
@@ -90,7 +90,7 @@
     const grp = d.group || p.family_group || '';
     view.innerHTML = `
       <div class="person-head">${avatar(p, 'xl')}
-        <div class="grow"><div class="sec-kicker">${isGroup ? '가족 그룹' : '가족 앨범'}${grp ? ' · ' + esc(grp) : ''}</div>
+        <div class="grow"><div class="sec-kicker">${isGroup ? '가족 그룹' : '가족 사전'}${grp ? ' · ' + esc(grp) : ''}</div>
         <h1 class="page-title">${esc(name)} ${p.relation ? `<span class="p-rel big">${esc(p.relation)}</span>` : ''}</h1>
         ${myBirthday ? `<p class="muted">생일 · ${myBirthday.calendar === 'lunar' ? '음력' : '양력'} ${myBirthday.birth_month}월 ${myBirthday.birth_day}일${myBirthday.birth_year ? ` · ${myBirthday.birth_year}년생` : ''}${YT.can('staff') ? ' <button class="btn tiny" id="editBd">생일 수정</button>' : ''}</p>` : ''}
         ${p.bio ? `<p class="p-bio">${YT.nl2br(p.bio)}</p>` : (YT.can('staff') && !isGroup ? '<p class="muted small">아직 소개가 없어요. ‘프로필 편집’으로 한 줄 소개를 남겨보세요.</p>' : '')}
@@ -112,7 +112,7 @@
         ${d.articles.length ? `<div class="card-grid three">${d.articles.map((a) => YT.articleCard(a, { excerpt: false })).join('')}</div>` : `<div class="empty-state small">아직 기사가 없어요.${YT.can('reporter') ? `<br><a class="btn small primary" href="#/write">${esc(name)} 이야기 쓰기</a>` : ''}</div>`}
       </section>
       ${YT.can('reporter') && !isGroup ? `<div class="row gap mt"><a class="btn" href="#/post/write?type=letter&to=${encodeURIComponent(name)}">${esc(name)}에게 편지 쓰기</a></div>` : ''}
-      <p class="mt"><a href="#/people">← 가족 앨범으로</a></p>`;
+      <p class="mt"><a href="#/people">← 가족 사전으로</a></p>`;
     const eb = YT.$('#editBd');
     if (eb) eb.onclick = () => YT.openEventForm(myBirthday, 'edit', () => { YT.clearCache(); YT.route(); });
     const add = YT.$('#addBd');
@@ -121,9 +121,9 @@
     if (del) del.onclick = () => {
       const fr = /친구|지인|동료|이웃|선배|후배|선생님/.test((p.relation || '') + (p.family_group || ''));
       const m = YT.modal(`<h2 class="modal-title">${esc(name)} 삭제</h2>
-        <p>가족 앨범에서 <b>${esc(name)}</b>님의 프로필(소개·사진·관계·가계도 연결)을 지우고, 일정의 등장 인물에서도 빼요.</p>
+        <p>가족 사전에서 <b>${esc(name)}</b>님의 프로필(소개·사진·관계·가계도 연결)을 지우고, 일정의 등장 인물에서도 빼요.</p>
         ${myBirthday ? `<label class="check"><input type="checkbox" id="delEv" ${fr ? 'checked' : ''}> ‘${esc(myBirthday.title)}’ 일정도 휴지통으로 보내기</label>` : ''}
-        ${d.articles.length ? `<p class="muted small">기사 ${d.articles.length}편에 등장 인물로 들어가 있어서, 그 기사들 때문에 이름은 가족 앨범에 계속 보일 수 있어요. 기사에서 빼려면 기사를 ‘수정’해 주세요.</p>` : ''}
+        ${d.articles.length ? `<p class="muted small">기사 ${d.articles.length}편에 등장 인물로 들어가 있어서, 그 기사들 때문에 이름은 가족 사전에 계속 보일 수 있어요. 기사에서 빼려면 기사를 ‘수정’해 주세요.</p>` : ''}
         <p class="muted small">휴지통으로 보낸 생일 일정은 일정 › 달력 아래 ‘삭제한 일정’에서 편집장 이상이 되살릴 수 있어요. 지운 프로필은 되살릴 수 없어요.</p>
         <div class="row gap end"><button type="button" class="btn" data-close>취소</button><button class="btn danger" id="delGo">삭제</button></div>`);
       m.el.querySelector('#delGo').onclick = async () => {
@@ -161,9 +161,9 @@
     const ensure = (n) => { if (n && !P.has(n)) P.set(n, { name: n }); };
     for (const p of [...P.values()]) { ensure(p.father); ensure(p.mother); ensure(p.spouse); }
     const linked = [...P.values()].filter((p) => p.father || p.mother || p.spouse || [...P.values()].some((q) => q.father === p.name || q.mother === p.name || q.spouse === p.name));
-    view.innerHTML = YT.subTabs('album') + YT.pageHead('', '가계도', '가족 앨범의 인물마다 아버지·어머니·배우자를 적으면 세대별로 이어져요. 이름을 누르면 그 사람 이야기로 가요.',
+    view.innerHTML = YT.subTabs('album') + YT.pageHead('', '가계도', '가족 사전의 인물마다 아버지·어머니·배우자를 적으면 세대별로 이어져요. 이름을 누르면 그 사람 이야기로 가요.',
       YT.can('staff') ? '<button class="btn" id="ftHelp">이어 주는 방법</button>' : '') + '<div class="ft-wrap" id="ftWrap"></div>';
-    const help = () => YT.modal(`<h2 class="modal-title">가계도 이어 주기</h2><ol class="set-list"><li><b>가족 앨범 › 인물</b>에서 사람을 고른 뒤 <b>프로필 편집</b>을 눌러요.</li><li><b>아버지 · 어머니 · 배우자</b> 칸에 이름을 적고 저장해요. (배우자는 한쪽만 적어도 서로 이어져요)</li><li>아이 프로필에 부모 이름을 적으면 아래 세대로 내려가 그려져요.</li></ol><div class="row end"><a class="btn primary" href="#/people">인물로 가기</a></div>`);
+    const help = () => YT.modal(`<h2 class="modal-title">가계도 이어 주기</h2><ol class="set-list"><li><b>가족 사전 › 인물</b>에서 사람을 고른 뒤 <b>프로필 편집</b>을 눌러요.</li><li><b>아버지 · 어머니 · 배우자</b> 칸에 이름을 적고 저장해요. (배우자는 한쪽만 적어도 서로 이어져요)</li><li>아이 프로필에 부모 이름을 적으면 아래 세대로 내려가 그려져요.</li></ol><div class="row end"><a class="btn primary" href="#/people">인물로 가기</a></div>`);
     const hb = YT.$('#ftHelp'); if (hb) hb.onclick = help;
     const wrap = YT.$('#ftWrap');
     if (!linked.length) { wrap.innerHTML = `<div class="empty-state"><h2>아직 이어진 가족이 없어요</h2><p class="muted">인물 프로필에서 아버지·어머니·배우자를 적으면 여기에 가계도가 그려져요.</p>${YT.can('staff') ? '<button class="btn primary" id="ftHelp2">이어 주는 방법</button>' : ''}</div>`; const h2 = YT.$('#ftHelp2'); if (h2) h2.onclick = help; return; }

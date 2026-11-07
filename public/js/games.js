@@ -243,7 +243,7 @@
 
   const mount = (desc, fn) => async (view) => {
     view.className = 'container';
-    view.innerHTML = YT.subTabs('games') + YT.pageHead('', '오락실', desc) + '<div id="gBox" class="g-box"><p class="muted">불러오는 중…</p></div>';
+    view.innerHTML = YT.subTabs('play') + YT.subTabs('games', 'pill') + YT.pageHead('', '오락실', desc) + '<div id="gBox" class="g-box"><p class="muted">불러오는 중…</p></div>';
     try { await fn(view.querySelector('#gBox')); } catch (err) { view.querySelector('#gBox').innerHTML = `<div class="empty-state"><p>${esc(err.message || '불러오지 못했어요.')}</p></div>`; }
   };
   YT.addRoute('/games', mount('누가 설거지할까? 인원을 고르고 이름을 적으면 사다리가 만들어져요. 적은 이름은 이 기기에 기억돼요.', ladder));

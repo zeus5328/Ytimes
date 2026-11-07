@@ -1,4 +1,4 @@
-/* 가족 광장 — 투표 + 오늘의 한마디 (신규) */
+/* 사랑방 — 투표 + 오늘의 한마디 (신규) */
 (function () {
   'use strict';
   const { esc } = YT;
@@ -22,7 +22,7 @@
       const best = tally(mine)[0];
       return `<div class="mw-row"><b>${esc(p)}</b><span class="mw-strip" style="--n:${days}">${Array.from({ length: days }, (_, i) => `<i${byDay[i + 1] ? ` style="--c:${MOOD_W[byDay[i + 1]][2]}"` : ''}></i>`).join('')}</span><small>${MOOD_W[best[0]][0]}</small></div>`; }).join('')}</div>${moodLegend()}`;
   };
-  // 가족 광장의 기분 날씨 달력
+  // 사랑방의 기분 날씨 달력
   async function moodCalendar(box, ym) {
     const { notes } = await YT.api('/api/notes?month=' + ym);
     const ns = notes.filter((n) => MOOD_W[n.mood]);
@@ -170,10 +170,10 @@
     });
   };
 
-  // ── 가족 광장 페이지
+  // ── 사랑방 페이지
   YT.addRoute('/board', async (view) => {
     const [{ polls }, { notes }, ft] = await Promise.all([YT.api('/api/polls'), YT.api('/api/notes?limit=100'), YT.facetime(true)]);
-    view.innerHTML = YT.pageHead('', '가족 광장', '가족에게 물어보고, 오늘 기분을 한 줄로 남기는 곳이에요.',
+    view.innerHTML = YT.pageHead('', '사랑방', '가족에게 물어보고, 오늘 기분을 한 줄로 남기는 곳이에요.',
       YT.can('subscriber') ? '<button class="btn primary" id="newPoll">가족에게 물어보기</button>' : '')
       + (YT.ftRoomBand(ft) || (YT.can('editor') ? '<section class="ft-room empty"><span class="ft-ic" aria-hidden="true">📹</span><div class="grow"><b>가족 영상통화방</b><small>페이스타임 링크를 붙여 두면 가족 누구나 한 번에 영상통화방으로 들어와요.</small></div><button class="btn small" id="ftRoomSet">만들기</button></section>' : ''))
       + (ft.room && YT.can('editor') ? '<p class="right small"><button class="linklike" id="ftRoomSet">영상통화방 링크 바꾸기</button></p>' : '')

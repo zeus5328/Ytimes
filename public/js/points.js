@@ -128,7 +128,7 @@
   const mount = (fn) => async (view) => {
     if (!YT.can('reporter')) return YT.state.user ? (view.innerHTML = '<div class="empty-state"><h2>기자만 원고료를 받을 수 있어요</h2><p class="muted">관리자에게 기자 권한을 부탁해 보세요.</p></div>') : YT.needLogin(view, '기자 계정으로 로그인하면 원고료와 쿠폰을 볼 수 있어요.');
     view.className = 'container';
-    view.innerHTML = YT.subTabs('desk') + YT.pageHead('', '원고료 · 쿠폰', '기사가 신문에 실리면 원고료(포인트)가 들어와요. 모은 포인트로 우리 가족 쿠폰을 살 수 있어요.') + '<div id="ptBox"><p class="muted">불러오는 중…</p></div>';
+    view.innerHTML = YT.subTabs('play') + YT.pageHead('', '적립금 은행', '기사가 신문에 실리면 원고료(포인트)가 들어와요. 모은 포인트로 우리 가족 쿠폰을 살 수 있어요.') + '<div id="ptBox"><p class="muted">불러오는 중…</p></div>';
     try { await fn(view.querySelector('#ptBox')); } catch (err) { view.querySelector('#ptBox').innerHTML = `<div class="empty-state"><p>${esc(err.message || '불러오지 못했어요.')}</p></div>`; }
   };
   YT.addRoute('/points', mount(myPage));
